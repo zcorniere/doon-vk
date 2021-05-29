@@ -1,5 +1,6 @@
 #include "VulkanApplication.hpp"
 #include "Logger.hpp"
+#include "QueueFamilyIndices.hpp"
 #include "vk_init.hpp"
 
 VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugUtilsMessengerEXT(VkInstance instance,
@@ -30,7 +31,7 @@ VulkanApplication::VulkanApplication()
         .applicationVersion = 1,
         .pEngineName = "No engine",
         .engineVersion = 1,
-        .apiVersion = VK_API_VERSION_1_1,
+        .apiVersion = VK_API_VERSION_1_2,
     };
 
     vk::InstanceCreateInfo createInfo = {
@@ -51,7 +52,47 @@ VulkanApplication::VulkanApplication()
 }
 VulkanApplication::~VulkanApplication()
 {
+    device.destroy();
     instance.destroyDebugUtilsMessengerEXT(debugUtilsMessenger);
     instance.destroy();
 }
-void VulkanApplication::init(Window &win) {}
+void VulkanApplication::init(Window &win)
+{
+    pickPhysicalDevice();
+    logger->info("GPU_PICKED") << physical_device.getProperties().deviceName;
+    LOGGER_ENDL;
+    createLogicalDevice();
+}
+
+void VulkanApplication::pickPhysicalDevice()
+{
+    auto devices = instance.enumeratePhysicalDevices();
+    if (devices.empty()) throw std::runtime_error("failed to find GPUs with Vulkan support");
+    for (const auto &device: devices) {
+        if (isDeviceSuitable(device)) {
+            physical_device = device;
+            break;
+        }
+    }
+}
+
+void VulkanApplication::createLogicalDevice()
+{
+    float fQueuePriority = 0.0f;
+    auto indices = QueueFamilyIndices::findQueueFamilies(physical_device);
+    vk::DeviceQueueCreateInfo queueCreateInfo{
+        .queueFamilyIndex = indices.graphicsFamily.value(),
+        .queueCount = 1,
+        .pQueuePriorities = &fQueuePriority,
+    };
+    vk::PhysicalDeviceFeatures deviceFeature{};
+
+    vk::DeviceCreateInfo createInfo{
+        .queueCreateInfoCount = 1,
+        .pQueueCreateInfos = &queueCreateInfo,
+        .pEnabledFeatures = &deviceFeature,
+    };
+
+    device = physical_device.createDevice(createInfo);
+    graphicsQueue = device.getQueue(indices.graphicsFamily.value(), 0);
+}

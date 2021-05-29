@@ -1,4 +1,5 @@
 #include "Logger.hpp"
+#include "QueueFamilyIndices.hpp"
 #include "VulkanApplication.hpp"
 
 std::vector<const char *> VulkanApplication::getRequiredExtensions(bool bEnableValidationLayers)
@@ -71,4 +72,12 @@ uint32_t VulkanApplication::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT
     (logger->*severity)(to_string_message_type(messageType)) << pCallbackData->pMessage;
     logger->endl();
     return VK_FALSE;
+}
+
+bool VulkanApplication::isDeviceSuitable(const vk::PhysicalDevice &gpu)
+{
+    auto indices = QueueFamilyIndices::findQueueFamilies(gpu);
+    auto feature = gpu.getFeatures();
+    auto properties = gpu.getProperties();
+    return indices.isComplete();
 }

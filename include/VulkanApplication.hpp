@@ -24,6 +24,9 @@ protected:
 protected:
     vk::Instance instance;
     vk::DebugUtilsMessengerEXT debugUtilsMessenger;
+    vk::PhysicalDevice physical_device;
+    vk::Device device;
+    vk::Queue graphicsQueue;
 
 private:
     static std::vector<const char *> getRequiredExtensions(bool bEnableValidationLayers = false);
@@ -31,7 +34,11 @@ private:
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT,
                                                         VkDebugUtilsMessageTypeFlagsEXT,
                                                         const VkDebugUtilsMessengerCallbackDataEXT *, void *);
+    static bool isDeviceSuitable(const vk::PhysicalDevice &gpu);
 
 private:
+    void pickPhysicalDevice();
+    void createLogicalDevice();
+
 private:
 };
