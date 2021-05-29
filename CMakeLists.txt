@@ -10,6 +10,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(${PROJECT_NAME} source/main.cpp
                                source/Window.cpp
+                               source/VulkanApplication.cpp
+                               source/Application.cpp
 )
 
 if(MSVC)

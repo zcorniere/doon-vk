@@ -1,2 +1,10 @@
-#include "Window.hpp"
-int main() { return 1; }
+#include "Application.hpp"
+int main()
+try {
+    Application app;
+
+    app.run();
+    return EXIT_SUCCESS;
+} catch (const std::exception &e) {
+    return EXIT_FAILURE;
+}
