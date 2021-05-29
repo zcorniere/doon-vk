@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(${PROJECT_NAME} source/main.cpp
+                               source/Window.cpp
 )
 
 if(MSVC)
@@ -18,8 +19,6 @@ else()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE include/)
-target_include_directories(${PROJECT_NAME} PRIVATE lib/glfw/)
-target_include_directories(${PROJECT_NAME} PRIVATE lib/glm/)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan)
 
