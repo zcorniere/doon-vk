@@ -6,22 +6,24 @@
 
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
+    std::optional<uint32_t> presentFamily;
 
-    bool isComplete() { return graphicsFamily.has_value(); }
-    static QueueFamilyIndices findQueueFamilies(const VkPhysicalDevice &device)
+    bool isComplete() { return graphicsFamily.has_value() && presentFamily.has_value(); }
+    static QueueFamilyIndices findQueueFamilies(const VkPhysicalDevice &device, const VkSurfaceKHR &surface)
     {
         QueueFamilyIndices indices;
+        uint32_t uFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &uFamilyCount, nullptr);
+        std::vector<VkQueueFamilyProperties> family_property_list(uFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &uFamilyCount, family_property_list.data());
 
-        uint32_t queueFamiliesCount = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamiliesCount, nullptr);
-        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamiliesCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamiliesCount, queueFamilies.data());
+        for (uint32_t i = 0; i < uFamilyCount; ++i) {
+            if (family_property_list.at(i).queueFlags & VK_QUEUE_GRAPHICS_BIT) indices.graphicsFamily = i;
 
-        auto propertiesIter = std::find_if(queueFamilies.begin(), queueFamilies.end(),
-                                           [](const auto &qfp) { return qfp.queueFlags & VK_QUEUE_GRAPHICS_BIT; });
-
-        indices.graphicsFamily = std::distance(queueFamilies.begin(), propertiesIter);
-        assert(indices.graphicsFamily.value() < queueFamilies.size());
+            VkBool32 presentSupport = false;
+            vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+            if (presentSupport) indices.presentFamily = i;
+        }
         return indices;
     }
 };

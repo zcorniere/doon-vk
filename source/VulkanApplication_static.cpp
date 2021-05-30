@@ -75,9 +75,9 @@ uint32_t VulkanApplication::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT
     return VK_FALSE;
 }
 
-bool VulkanApplication::isDeviceSuitable(const VkPhysicalDevice &gpu)
+bool VulkanApplication::isDeviceSuitable(const VkPhysicalDevice &gpu, const VkSurfaceKHR &surface)
 {
-    auto indices = QueueFamilyIndices::findQueueFamilies(gpu);
+    auto indices = QueueFamilyIndices::findQueueFamilies(gpu, surface);
     VkPhysicalDeviceProperties deviceProperties;
     VkPhysicalDeviceFeatures deviceFeatures;
     vkGetPhysicalDeviceProperties(gpu, &deviceProperties);

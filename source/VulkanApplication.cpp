@@ -2,6 +2,7 @@
 #include "Logger.hpp"
 #include "QueueFamilyIndices.hpp"
 #include "vk_init.hpp"
+#include <set>
 
 VulkanApplication::VulkanApplication() {}
 VulkanApplication::~VulkanApplication() { mainDeletionQueue.flush(); }
@@ -69,7 +70,7 @@ void VulkanApplication::pickPhysicalDevice()
     vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
     if (devices.empty()) throw VulkanException("failed to find GPUs with Vulkan support");
     for (const auto &device: devices) {
-        if (isDeviceSuitable(device)) {
+        if (isDeviceSuitable(device, surface)) {
             physical_device = device;
             break;
         }
@@ -87,24 +88,29 @@ void VulkanApplication::pickPhysicalDevice()
 
 void VulkanApplication::createLogicalDevice()
 {
-    float fQueuePriority = 0.0f;
-    auto indices = QueueFamilyIndices::findQueueFamilies(physical_device);
-    auto queueCreateInfo = vk_init::populateDeviceQueueCreateInfo(1, indices.graphicsFamily.value(), fQueuePriority);
+    float fQueuePriority = 1.0f;
+    auto indices = QueueFamilyIndices::findQueueFamilies(physical_device, surface);
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    std::set<uint32_t> uniqueQueueFamilies{indices.graphicsFamily.value(), indices.presentFamily.value()};
+
+    for (const uint32_t queueFamily: uniqueQueueFamilies) {
+        queueCreateInfos.push_back(vk_init::populateDeviceQueueCreateInfo(1, queueFamily, fQueuePriority));
+    }
 
     VkPhysicalDeviceFeatures deviceFeature{};
 
     VkDeviceCreateInfo createInfo{
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .pNext = nullptr,
-        .queueCreateInfoCount = 1,
-        .pQueueCreateInfos = &queueCreateInfo,
+        .queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size()),
+        .pQueueCreateInfos = queueCreateInfos.data(),
         .pEnabledFeatures = &deviceFeature,
     };
-
     VK_TRY(vkCreateDevice(physical_device, &createInfo, nullptr, &device));
-    vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
-
     mainDeletionQueue.push([=]() { vkDestroyDevice(device, nullptr); });
+
+    vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
+    vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
 }
 
 void VulkanApplication::initSurface(Window &win)
