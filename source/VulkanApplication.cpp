@@ -3,76 +3,85 @@
 #include "QueueFamilyIndices.hpp"
 #include "vk_init.hpp"
 
-VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugUtilsMessengerEXT(VkInstance instance,
-                                                              const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
-                                                              const VkAllocationCallbacks *pAllocator,
-                                                              VkDebugUtilsMessengerEXT *pMessenger)
+VulkanApplication::VulkanApplication() {}
+VulkanApplication::~VulkanApplication() { mainDeletionQueue.flush(); }
+void VulkanApplication::init(Window &win)
 {
-    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-    return func(instance, pCreateInfo, pAllocator, pMessenger);
+    initInstance();
+    initDebug();
+    initSurface(win);
+    pickPhysicalDevice();
+    createLogicalDevice();
 }
 
-VKAPI_ATTR void VKAPI_CALL vkDestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT messenger,
-                                                           VkAllocationCallbacks const *pAllocator)
-{
-    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    if (func != nullptr) { func(instance, messenger, pAllocator); }
-}
-
-VulkanApplication::VulkanApplication()
+void VulkanApplication::initInstance()
 {
     if (enableValidationLayers && !checkValiationLayerSupport()) {
         throw std::runtime_error("validation layers requested, but not available!");
     }
+    auto debugInfo = vk_init::populateDebugUtilsMessengerCreateInfoEXT(&VulkanApplication::debugCallback);
     auto extensions = getRequiredExtensions(enableValidationLayers);
 
-    vk::ApplicationInfo applicationInfo = {
-        .pApplicationName = "doon",
-        .applicationVersion = 1,
-        .pEngineName = "No engine",
-        .engineVersion = 1,
-        .apiVersion = VK_API_VERSION_1_2,
+    for (const auto &i: extensions) { std::cout << i << " | "; }
+    std::cout << std::endl;
+    VkApplicationInfo applicationInfo{
+        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+        .apiVersion = VK_API_VERSION_1_1,
     };
-
-    vk::InstanceCreateInfo createInfo = {
+    VkInstanceCreateInfo createInfo{
+        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+        .pNext = nullptr,
         .pApplicationInfo = &applicationInfo,
         .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
         .ppEnabledExtensionNames = extensions.data(),
     };
-    auto debugInfo = vk_init::populateDebugUtilsMessengerCreateInfoEXT(&VulkanApplication::debugCallback);
-
     if (enableValidationLayers) {
         createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT *)&debugInfo;
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
         createInfo.ppEnabledLayerNames = validationLayers.data();
     }
-
-    instance = vk::createInstance(createInfo);
-    debugUtilsMessenger = instance.createDebugUtilsMessengerEXT(debugInfo);
-}
-VulkanApplication::~VulkanApplication()
-{
-    device.destroy();
-    instance.destroyDebugUtilsMessengerEXT(debugUtilsMessenger);
-    instance.destroy();
-}
-void VulkanApplication::init(Window &win)
-{
-    pickPhysicalDevice();
-    logger->info("GPU_PICKED") << physical_device.getProperties().deviceName;
-    LOGGER_ENDL;
-    createLogicalDevice();
+    VK_TRY(vkCreateInstance(&createInfo, nullptr, &instance));
+    mainDeletionQueue.push([&]() { vkDestroyInstance(instance, nullptr); });
 }
 
+void VulkanApplication::initDebug()
+{
+    if (!enableValidationLayers) return;
+
+    auto debugInfo = vk_init::populateDebugUtilsMessengerCreateInfoEXT(&VulkanApplication::debugCallback);
+    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+    if (func != nullptr) {
+        VK_TRY(func(instance, &debugInfo, nullptr, &debugUtilsMessenger));
+    } else {
+        throw VulkanException("VK_ERROR_EXTENSION_NOT_PRESENT");
+    }
+    mainDeletionQueue.push([&]() {
+        auto func =
+            (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+        if (func != nullptr) { func(instance, debugUtilsMessenger, nullptr); }
+    });
+}
 void VulkanApplication::pickPhysicalDevice()
 {
-    auto devices = instance.enumeratePhysicalDevices();
-    if (devices.empty()) throw std::runtime_error("failed to find GPUs with Vulkan support");
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+    if (devices.empty()) throw VulkanException("failed to find GPUs with Vulkan support");
     for (const auto &device: devices) {
         if (isDeviceSuitable(device)) {
             physical_device = device;
             break;
         }
+    }
+    if (physical_device == VK_NULL_HANDLE) {
+        throw VulkanException("failed to find suitable GPU");
+    } else {
+        VkPhysicalDeviceProperties deviceProperties;
+        vkGetPhysicalDeviceProperties(physical_device, &deviceProperties);
+        logger->info(vk_utils::tools::physicalDeviceTypeString(deviceProperties.deviceType))
+            << deviceProperties.deviceName;
+        LOGGER_ENDL;
     }
 }
 
@@ -80,19 +89,26 @@ void VulkanApplication::createLogicalDevice()
 {
     float fQueuePriority = 0.0f;
     auto indices = QueueFamilyIndices::findQueueFamilies(physical_device);
-    vk::DeviceQueueCreateInfo queueCreateInfo{
-        .queueFamilyIndex = indices.graphicsFamily.value(),
-        .queueCount = 1,
-        .pQueuePriorities = &fQueuePriority,
-    };
-    vk::PhysicalDeviceFeatures deviceFeature{};
+    auto queueCreateInfo = vk_init::populateDeviceQueueCreateInfo(1, indices.graphicsFamily.value(), fQueuePriority);
 
-    vk::DeviceCreateInfo createInfo{
+    VkPhysicalDeviceFeatures deviceFeature{};
+
+    VkDeviceCreateInfo createInfo{
+        .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .pNext = nullptr,
         .queueCreateInfoCount = 1,
         .pQueueCreateInfos = &queueCreateInfo,
         .pEnabledFeatures = &deviceFeature,
     };
 
-    device = physical_device.createDevice(createInfo);
-    graphicsQueue = device.getQueue(indices.graphicsFamily.value(), 0);
+    VK_TRY(vkCreateDevice(physical_device, &createInfo, nullptr, &device));
+    vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
+
+    mainDeletionQueue.push([=]() { vkDestroyDevice(device, nullptr); });
+}
+
+void VulkanApplication::initSurface(Window &win)
+{
+    win.createSurface(instance, &surface);
+    mainDeletionQueue.push([&]() { vkDestroySurfaceKHR(instance, surface, nullptr); });
 }

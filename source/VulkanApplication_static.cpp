@@ -1,25 +1,26 @@
 #include "Logger.hpp"
 #include "QueueFamilyIndices.hpp"
 #include "VulkanApplication.hpp"
+#include <cstring>
 
 std::vector<const char *> VulkanApplication::getRequiredExtensions(bool bEnableValidationLayers)
 {
     uint32_t glfwExtensionCount = 0;
-    const char **glfwExtensions;
-    glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    const char **glfwExtentsions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-    std::vector<const char *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+    std::vector<const char *> extensions(glfwExtentsions, glfwExtentsions + glfwExtensionCount);
 
     if (bEnableValidationLayers) { extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME); }
-
     return extensions;
 }
 
 bool VulkanApplication::checkValiationLayerSupport()
 {
-    auto availableLayers = vk::enumerateInstanceLayerProperties();
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+    std::vector<VkLayerProperties> availableLayers(layerCount);
+    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
     for (const char *layerName: validationLayers) {
         bool layerFound = false;
@@ -74,10 +75,12 @@ uint32_t VulkanApplication::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT
     return VK_FALSE;
 }
 
-bool VulkanApplication::isDeviceSuitable(const vk::PhysicalDevice &gpu)
+bool VulkanApplication::isDeviceSuitable(const VkPhysicalDevice &gpu)
 {
     auto indices = QueueFamilyIndices::findQueueFamilies(gpu);
-    auto feature = gpu.getFeatures();
-    auto properties = gpu.getProperties();
+    VkPhysicalDeviceProperties deviceProperties;
+    VkPhysicalDeviceFeatures deviceFeatures;
+    vkGetPhysicalDeviceProperties(gpu, &deviceProperties);
+    vkGetPhysicalDeviceFeatures(gpu, &deviceFeatures);
     return indices.isComplete();
 }

@@ -16,7 +16,7 @@ try {
 
     app.run();
     return EXIT_SUCCESS;
-} catch (const vk::SystemError &se) {
+} catch (const VulkanException &se) {
     logger->err("VULKAN_ERROR") << se.what();
     logger->endl();
     return EXIT_FAILURE;
