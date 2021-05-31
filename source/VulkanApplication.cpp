@@ -1,6 +1,6 @@
 #include "VulkanApplication.hpp"
 #include "Logger.hpp"
-#include "QueueFamilyIndices.hpp"
+#include "SwapChainSupportDetails.hpp"
 #include "vk_init.hpp"
 #include <set>
 
@@ -12,7 +12,9 @@ void VulkanApplication::init(Window &win)
     initDebug();
     initSurface(win);
     pickPhysicalDevice();
-    createLogicalDevice();
+    auto queueIndices = createLogicalDevice();
+    createSwapchain(queueIndices, win);
+    createImageWiews();
 }
 
 void VulkanApplication::initInstance()
@@ -86,7 +88,13 @@ void VulkanApplication::pickPhysicalDevice()
     }
 }
 
-void VulkanApplication::createLogicalDevice()
+void VulkanApplication::initSurface(Window &win)
+{
+    win.createSurface(instance, &surface);
+    mainDeletionQueue.push([&]() { vkDestroySurfaceKHR(instance, surface, nullptr); });
+}
+
+QueueFamilyIndices VulkanApplication::createLogicalDevice()
 {
     float fQueuePriority = 1.0f;
     auto indices = QueueFamilyIndices::findQueueFamilies(physical_device, surface);
@@ -104,6 +112,8 @@ void VulkanApplication::createLogicalDevice()
         .pNext = nullptr,
         .queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size()),
         .pQueueCreateInfos = queueCreateInfos.data(),
+        .enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size()),
+        .ppEnabledExtensionNames = deviceExtensions.data(),
         .pEnabledFeatures = &deviceFeature,
     };
     VK_TRY(vkCreateDevice(physical_device, &createInfo, nullptr, &device));
@@ -111,10 +121,64 @@ void VulkanApplication::createLogicalDevice()
 
     vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
     vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
+    return indices;
 }
 
-void VulkanApplication::initSurface(Window &win)
+void VulkanApplication::createSwapchain(const QueueFamilyIndices &indices, Window &win)
 {
-    win.createSurface(instance, &surface);
-    mainDeletionQueue.push([&]() { vkDestroySurfaceKHR(instance, surface, nullptr); });
+    auto swapChainSupport = SwapChainSupportDetails::querySwapChainSupport(physical_device, surface);
+    auto surfaceFormat = swapChainSupport.chooseSwapSurfaceFormat();
+    auto presentMode = swapChainSupport.chooseSwapPresentMode();
+    auto extent = swapChainSupport.chooseSwapExtent(win);
+    uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
+    if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
+        imageCount = swapChainSupport.capabilities.maxImageCount;
+    }
+
+    VkSwapchainCreateInfoKHR createInfo{
+
+        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        .surface = surface,
+        .minImageCount = imageCount,
+        .imageFormat = surfaceFormat.format,
+        .imageColorSpace = surfaceFormat.colorSpace,
+        .imageExtent = extent,
+        .imageArrayLayers = 1,
+        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        .preTransform = swapChainSupport.capabilities.currentTransform,
+        .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        .presentMode = presentMode,
+        .clipped = VK_TRUE,
+        .oldSwapchain = this->swapChain,
+    };
+    uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
+
+    if (indices.graphicsFamily != indices.presentFamily) {
+        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        createInfo.queueFamilyIndexCount = 2;
+        createInfo.pQueueFamilyIndices = queueFamilyIndices;
+    } else {
+        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        createInfo.queueFamilyIndexCount = 0;        // Optional
+        createInfo.pQueueFamilyIndices = nullptr;    // Optional
+    }
+    VK_TRY(vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain));
+    mainDeletionQueue.push([&]() { vkDestroySwapchainKHR(device, swapChain, nullptr); });
+    vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
+    swapChainImages.resize(imageCount);
+    vkGetSwapchainImagesKHR(device, swapChain, &imageCount, swapChainImages.data());
+    swapChainImageFormat = surfaceFormat.format;
+    swapChainExtent = extent;
+}
+
+void VulkanApplication::createImageWiews()
+{
+    swapChainImageViews.resize(swapChainImages.size());
+    for (size_t i = 0; i < swapChainImages.size(); ++i) {
+        auto createInfo = vk_init::populateVkImageViewCreateInfo(swapChainImages.at(i), swapChainImageFormat);
+        VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &swapChainImageViews.at(i)));
+    }
+    mainDeletionQueue.push([&]() {
+        for (auto &imageView: swapChainImageViews) { vkDestroyImageView(device, imageView, nullptr); }
+    });
 }

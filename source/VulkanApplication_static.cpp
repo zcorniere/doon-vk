@@ -1,7 +1,9 @@
 #include "Logger.hpp"
-#include "QueueFamilyIndices.hpp"
+#include "SwapChainSupportDetails.hpp"
 #include "VulkanApplication.hpp"
 #include <cstring>
+#include <set>
+#include <string>
 
 std::vector<const char *> VulkanApplication::getRequiredExtensions(bool bEnableValidationLayers)
 {
@@ -78,9 +80,28 @@ uint32_t VulkanApplication::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT
 bool VulkanApplication::isDeviceSuitable(const VkPhysicalDevice &gpu, const VkSurfaceKHR &surface)
 {
     auto indices = QueueFamilyIndices::findQueueFamilies(gpu, surface);
+    bool extensionsSupported = checkDeviceExtensionSupport(gpu);
     VkPhysicalDeviceProperties deviceProperties;
     VkPhysicalDeviceFeatures deviceFeatures;
     vkGetPhysicalDeviceProperties(gpu, &deviceProperties);
     vkGetPhysicalDeviceFeatures(gpu, &deviceFeatures);
-    return indices.isComplete();
+
+    bool swapChainAdequate = false;
+    if (extensionsSupported) {
+        auto swapChainSupport = SwapChainSupportDetails::querySwapChainSupport(gpu, surface);
+        swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
+    }
+    return indices.isComplete() && extensionsSupported && swapChainAdequate;
+}
+
+bool VulkanApplication::checkDeviceExtensionSupport(const VkPhysicalDevice &device)
+{
+    uint32_t extensionsCount;
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionsCount, nullptr);
+    std::vector<VkExtensionProperties> availableExtensions(extensionsCount);
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionsCount, availableExtensions.data());
+
+    std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+    for (const auto &extension: availableExtensions) { requiredExtensions.erase(extension.extensionName); }
+    return requiredExtensions.empty();
 }
