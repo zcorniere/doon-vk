@@ -3,10 +3,13 @@
 #include <cstdint>
 #include <stdexcept>
 #include <string>
+#include <vector>
 #include <vulkan/vulkan.h>
 
 namespace vk_utils
 {
+std::vector<std::byte> readFile(const std::string &filename);
+VkShaderModule createShaderModule(const VkDevice &device, const std::vector<std::byte> &code);
 namespace tools
 {
     std::string errorString(VkResult errorCode);

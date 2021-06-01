@@ -12,4 +12,6 @@ VkDebugUtilsMessengerCreateInfoEXT populateDebugUtilsMessengerCreateInfoEXT(
                                        const VkDebugUtilsMessengerCallbackDataEXT *, void *));
 VkDeviceQueueCreateInfo populateDeviceQueueCreateInfo(const uint32_t, const uint32_t, const float &);
 VkImageViewCreateInfo populateVkImageViewCreateInfo(VkImage &image, VkFormat &format);
+VkShaderModuleCreateInfo populateVkShaderModuleCreateInfo(const std::vector<std::byte> &code);
+
 }    // namespace vk_init

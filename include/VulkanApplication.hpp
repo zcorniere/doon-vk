@@ -64,6 +64,7 @@ private:
     QueueFamilyIndices createLogicalDevice();
     void createSwapchain(const QueueFamilyIndices &, Window &);
     void createImageWiews();
+    void createGraphicsPipeline();
 
 private:
     DeleteionQueue mainDeletionQueue;

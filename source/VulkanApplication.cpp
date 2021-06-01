@@ -15,6 +15,7 @@ void VulkanApplication::init(Window &win)
     auto queueIndices = createLogicalDevice();
     createSwapchain(queueIndices, win);
     createImageWiews();
+    createGraphicsPipeline();
 }
 
 void VulkanApplication::initInstance()
@@ -181,4 +182,16 @@ void VulkanApplication::createImageWiews()
     mainDeletionQueue.push([&]() {
         for (auto &imageView: swapChainImageViews) { vkDestroyImageView(device, imageView, nullptr); }
     });
+}
+
+void VulkanApplication::createGraphicsPipeline()
+{
+    auto vertShaderCode = vk_utils::readFile("shaders/default_triangle.vert.spv");
+    auto fragShaderCode = vk_utils::readFile("shaders/default_triangle.frag.spv");
+
+    auto vertShaderModule = vk_utils::createShaderModule(device, vertShaderCode);
+    auto fragShaderModule = vk_utils::createShaderModule(device, fragShaderCode);
+
+    vkDestroyShaderModule(device, fragShaderModule, nullptr);
+    vkDestroyShaderModule(device, vertShaderModule, nullptr);
 }

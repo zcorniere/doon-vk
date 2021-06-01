@@ -57,4 +57,14 @@ VkImageViewCreateInfo populateVkImageViewCreateInfo(VkImage &img, VkFormat &form
             },
     };
 }
+
+VkShaderModuleCreateInfo populateVkShaderModuleCreateInfo(const std::vector<std::byte> &code)
+{
+    return VkShaderModuleCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .pNext = nullptr,
+        .codeSize = code.size(),
+        .pCode = reinterpret_cast<const uint32_t *>(code.data()),
+    };
+}
 }    // namespace vk_init

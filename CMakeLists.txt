@@ -25,6 +25,10 @@ add_executable(${PROJECT_NAME} source/main.cpp
                                source/Application.cpp
 )
 
+add_shader(${PROJECT_NAME} default_triangle.vert)
+add_shader(${PROJECT_NAME} default_triangle.frag)
+
+
 target_compile_definitions(${PROJECT_NAME} PRIVATE 
             -DVULKAN_HPP_NO_STRUCT_CONSTRUCTORS
 )

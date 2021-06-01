@@ -4,6 +4,28 @@
 
 namespace vk_utils
 {
+std::vector<std::byte> readFile(const std::string &filename)
+{
+    size_t fileSize = 0;
+    std::vector<std::byte> fileContent;
+    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open()) { throw std::runtime_error("failed to open file"); }
+    fileSize = file.tellg();
+    fileContent.resize(fileSize);
+    file.seekg(0);
+    file.read((char *)fileContent.data(), fileSize);
+    file.close();
+    return fileContent;
+}
+
+VkShaderModule createShaderModule(const VkDevice &device, const std::vector<std::byte> &code)
+{
+    auto createInfo = vk_init::populateVkShaderModuleCreateInfo(code);
+    VkShaderModule shader = VK_NULL_HANDLE;
+    VK_TRY(vkCreateShaderModule(device, &createInfo, nullptr, &shader));
+    return shader;
+}
 
 namespace tools
 {
