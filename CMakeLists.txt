@@ -20,6 +20,7 @@ add_executable(${PROJECT_NAME} source/main.cpp
                                source/VulkanApplication.cpp
                                source/VulkanApplication_static.cpp
                                source/vk_init.cpp
+                               source/vk_utils.cpp
                                source/Logger.cpp
                                source/Application.cpp
 )
