@@ -48,6 +48,18 @@ protected:
     VkExtent2D swapChainExtent;
     std::vector<VkImageView> swapChainImageViews;
 
+    // Pipeline
+    VkRenderPass renderPass;
+    VkPipelineLayout pipelineLayout;
+    VkPipeline graphicsPipeline;
+
+    // Framebuffer
+    std::vector<VkFramebuffer> swapChainFramebuffers;
+
+    // Command Pool
+    VkCommandPool commandPool;
+    std::vector<VkCommandBuffer> commandBuffers;
+
 private:
     static std::vector<const char *> getRequiredExtensions(bool bEnableValidationLayers = false);
     static bool checkValiationLayerSupport();
@@ -64,7 +76,11 @@ private:
     QueueFamilyIndices createLogicalDevice();
     void createSwapchain(const QueueFamilyIndices &, Window &);
     void createImageWiews();
+    void createRenderPass();
     void createGraphicsPipeline();
+    void createFramebuffers();
+    void createCommandPool(const QueueFamilyIndices &);
+    void createCommandBuffers();
 
 private:
     DeleteionQueue mainDeletionQueue;

@@ -14,4 +14,23 @@ VkDeviceQueueCreateInfo populateDeviceQueueCreateInfo(const uint32_t, const uint
 VkImageViewCreateInfo populateVkImageViewCreateInfo(VkImage &image, VkFormat &format);
 VkShaderModuleCreateInfo populateVkShaderModuleCreateInfo(const std::vector<std::byte> &code);
 
+VkPipelineShaderStageCreateInfo populateVkPipelineShaderStageCreateInfo(VkShaderStageFlagBits stage,
+                                                                        VkShaderModule &module,
+                                                                        const char *entryPoint = "main");
+VkPipelineVertexInputStateCreateInfo
+populateVkPipelineVertexInputStateCreateInfo(const std::vector<VkVertexInputBindingDescription> &binding,
+                                             const std::vector<VkVertexInputAttributeDescription> &attribute);
+VkPipelineInputAssemblyStateCreateInfo populateVkPipelineInputAssemblyCreateInfo(VkPrimitiveTopology,
+                                                                                 VkBool32 = VK_FALSE);
+VkPipelineRasterizationStateCreateInfo populateVkPipelineRasterizationStateCreateInfo(VkPolygonMode);
+VkPipelineMultisampleStateCreateInfo populateVkPipelineMultisampleStateCreateInfo();
+VkPipelineColorBlendAttachmentState populateVkPipelineColorBlendAttachmentState();
+
+VkPipelineLayoutCreateInfo populateVkPipelineLayoutCreateInfo(const std::vector<VkDescriptorSetLayout> &setLayout,
+                                                              const std::vector<VkPushConstantRange> &pushLayout);
+
+namespace empty
+{
+    VkPipelineLayoutCreateInfo populateVkPipelineLayoutCreateInfo();
+}
 }    // namespace vk_init

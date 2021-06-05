@@ -1,5 +1,6 @@
 #include "VulkanApplication.hpp"
 #include "Logger.hpp"
+#include "PipelineBuilder.hpp"
 #include "SwapChainSupportDetails.hpp"
 #include "vk_init.hpp"
 #include <set>
@@ -15,7 +16,11 @@ void VulkanApplication::init(Window &win)
     auto queueIndices = createLogicalDevice();
     createSwapchain(queueIndices, win);
     createImageWiews();
+    createRenderPass();
     createGraphicsPipeline();
+    createFramebuffers();
+    createCommandPool(queueIndices);
+    createCommandBuffers();
 }
 
 void VulkanApplication::initInstance()
@@ -26,8 +31,6 @@ void VulkanApplication::initInstance()
     auto debugInfo = vk_init::populateDebugUtilsMessengerCreateInfoEXT(&VulkanApplication::debugCallback);
     auto extensions = getRequiredExtensions(enableValidationLayers);
 
-    for (const auto &i: extensions) { std::cout << i << " | "; }
-    std::cout << std::endl;
     VkApplicationInfo applicationInfo{
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .apiVersion = VK_API_VERSION_1_1,
@@ -184,6 +187,38 @@ void VulkanApplication::createImageWiews()
     });
 }
 
+void VulkanApplication::createRenderPass()
+{
+    VkAttachmentDescription colorAttachment{
+        .format = swapChainImageFormat,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+    };
+    VkAttachmentReference colorAttachmentRef{
+        .attachment = 0,
+        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    };
+    VkSubpassDescription subpass{
+        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &colorAttachmentRef,
+    };
+    VkRenderPassCreateInfo renderPassInfo{
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+        .pNext = nullptr,
+        .attachmentCount = 1,
+        .pAttachments = &colorAttachment,
+        .subpassCount = 1,
+        .pSubpasses = &subpass,
+    };
+    VK_TRY(vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass));
+    mainDeletionQueue.push([&]() { vkDestroyRenderPass(device, renderPass, nullptr); });
+}
 void VulkanApplication::createGraphicsPipeline()
 {
     auto vertShaderCode = vk_utils::readFile("shaders/default_triangle.vert.spv");
@@ -192,6 +227,111 @@ void VulkanApplication::createGraphicsPipeline()
     auto vertShaderModule = vk_utils::createShaderModule(device, vertShaderCode);
     auto fragShaderModule = vk_utils::createShaderModule(device, fragShaderCode);
 
+    std::vector<VkVertexInputBindingDescription> binding;
+    std::vector<VkVertexInputAttributeDescription> attribute;
+
+    auto pipelineLayoutCreateInfo = vk_init::empty::populateVkPipelineLayoutCreateInfo();
+    VK_TRY(vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout));
+
+    PipelineBuilder builder;
+    builder.pipelineLayout = pipelineLayout;
+    builder.shaderStages.push_back(
+        vk_init::populateVkPipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertShaderModule));
+    builder.shaderStages.push_back(
+        vk_init::populateVkPipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragShaderModule));
+    builder.vertexInputInfo = vk_init::populateVkPipelineVertexInputStateCreateInfo(binding, attribute);
+    builder.inputAssembly =
+        vk_init::populateVkPipelineInputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE);
+    builder.multisampling = vk_init::populateVkPipelineMultisampleStateCreateInfo();
+    builder.viewport.x = 0.0f;
+    builder.viewport.y = 0.0f;
+    builder.viewport.width = swapChainExtent.width;
+    builder.viewport.height = swapChainExtent.height;
+    builder.viewport.minDepth = 0.0f;
+    builder.viewport.maxDepth = 1.0f;
+    builder.scissor.offset = {0, 0};
+    builder.scissor.extent = swapChainExtent;
+    builder.colorBlendAttachment = vk_init::populateVkPipelineColorBlendAttachmentState();
+    builder.rasterizer = vk_init::populateVkPipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
+    graphicsPipeline = builder.build(device, renderPass);
+
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
+    mainDeletionQueue.push([&]() {
+        vkDestroyPipeline(device, graphicsPipeline, nullptr);
+        vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+    });
+}
+
+void VulkanApplication::createFramebuffers()
+{
+    swapChainFramebuffers.resize(swapChainImageViews.size());
+    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+        VkImageView attachments[] = {swapChainImageViews[i]};
+
+        VkFramebufferCreateInfo framebufferInfo{};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = renderPass;
+        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.pAttachments = attachments;
+        framebufferInfo.width = swapChainExtent.width;
+        framebufferInfo.height = swapChainExtent.height;
+        framebufferInfo.layers = 1;
+
+        VK_TRY(vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]));
+    }
+    mainDeletionQueue.push([&]() {
+        for (auto &framebuffer: swapChainFramebuffers) { vkDestroyFramebuffer(device, framebuffer, nullptr); }
+    });
+}
+
+void VulkanApplication::createCommandPool(const QueueFamilyIndices &indices)
+{
+    VkCommandPoolCreateInfo poolInfo{
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .queueFamilyIndex = indices.graphicsFamily.value(),
+    };
+    VK_TRY(vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool));
+    mainDeletionQueue.push([&]() { vkDestroyCommandPool(device, commandPool, nullptr); });
+}
+
+void VulkanApplication::createCommandBuffers()
+{
+    commandBuffers.resize(swapChainFramebuffers.size());
+
+    VkCommandBufferAllocateInfo allocInfo{
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .pNext = nullptr,
+        .commandPool = commandPool,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = static_cast<uint32_t>(commandBuffers.size()),
+    };
+    VK_TRY(vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data()));
+    for (size_t i = 0; i < commandBuffers.size(); ++i) {
+        VkCommandBufferBeginInfo beginInfo{
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .pInheritanceInfo = nullptr,
+        };
+
+        VkClearValue clearColor = {.color = {{0.0f, 0.0f, 0.0f, 1.0f}}};
+        VkRenderPassBeginInfo renderPassInfo{};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassInfo.renderPass = renderPass;
+        renderPassInfo.framebuffer = swapChainFramebuffers[i];
+        renderPassInfo.renderArea.offset = {0, 0};
+        renderPassInfo.renderArea.extent = swapChainExtent;
+        renderPassInfo.clearValueCount = 1;
+        renderPassInfo.pClearValues = &clearColor;
+
+        VK_TRY(vkBeginCommandBuffer(commandBuffers[i], &beginInfo));
+        vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+        vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
+        vkCmdEndRenderPass(commandBuffers[i]);
+        VK_TRY(vkEndCommandBuffer(commandBuffers[i]));
+    }
 }
