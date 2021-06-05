@@ -12,6 +12,7 @@ public:
     void run();
 
 private:
+    void drawFrame();
     static void keyboard_callback(GLFWwindow *win, int key, int, int action, int);
 
 private:

@@ -60,6 +60,10 @@ protected:
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
 
+    // Sync
+    VkSemaphore imageAvailableSemaphore;
+    VkSemaphore renderFinishedSemaphore;
+
 private:
     static std::vector<const char *> getRequiredExtensions(bool bEnableValidationLayers = false);
     static bool checkValiationLayerSupport();
@@ -81,6 +85,7 @@ private:
     void createFramebuffers();
     void createCommandPool(const QueueFamilyIndices &);
     void createCommandBuffers();
+    void createSemaphores();
 
 private:
     DeleteionQueue mainDeletionQueue;

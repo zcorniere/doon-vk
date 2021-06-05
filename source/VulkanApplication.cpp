@@ -21,6 +21,7 @@ void VulkanApplication::init(Window &win)
     createFramebuffers();
     createCommandPool(queueIndices);
     createCommandBuffers();
+    createSemaphores();
 }
 
 void VulkanApplication::initInstance()
@@ -208,6 +209,15 @@ void VulkanApplication::createRenderPass()
         .colorAttachmentCount = 1,
         .pColorAttachments = &colorAttachmentRef,
     };
+    VkSubpassDependency dependency{
+        .srcSubpass = VK_SUBPASS_EXTERNAL,
+        .dstSubpass = 0,
+        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .srcAccessMask = 0,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    };
+
     VkRenderPassCreateInfo renderPassInfo{
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
         .pNext = nullptr,
@@ -215,6 +225,8 @@ void VulkanApplication::createRenderPass()
         .pAttachments = &colorAttachment,
         .subpassCount = 1,
         .pSubpasses = &subpass,
+        .dependencyCount = 1,
+        .pDependencies = &dependency,
     };
     VK_TRY(vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass));
     mainDeletionQueue.push([&]() { vkDestroyRenderPass(device, renderPass, nullptr); });
@@ -318,14 +330,18 @@ void VulkanApplication::createCommandBuffers()
         };
 
         VkClearValue clearColor = {.color = {{0.0f, 0.0f, 0.0f, 1.0f}}};
-        VkRenderPassBeginInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = renderPass;
-        renderPassInfo.framebuffer = swapChainFramebuffers[i];
-        renderPassInfo.renderArea.offset = {0, 0};
-        renderPassInfo.renderArea.extent = swapChainExtent;
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearColor;
+        VkRenderPassBeginInfo renderPassInfo{
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            .renderPass = renderPass,
+            .framebuffer = swapChainFramebuffers[i],
+            .renderArea =
+                {
+                    .offset = {0, 0},
+                    .extent = swapChainExtent,
+                },
+            .clearValueCount = 1,
+            .pClearValues = &clearColor,
+        };
 
         VK_TRY(vkBeginCommandBuffer(commandBuffers[i], &beginInfo));
         vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -334,4 +350,18 @@ void VulkanApplication::createCommandBuffers()
         vkCmdEndRenderPass(commandBuffers[i]);
         VK_TRY(vkEndCommandBuffer(commandBuffers[i]));
     }
+}
+
+void VulkanApplication::createSemaphores()
+{
+    VkSemaphoreCreateInfo semaphoreInfo{
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        .pNext = nullptr,
+    };
+    VK_TRY(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphore));
+    VK_TRY(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore));
+    mainDeletionQueue.push([&]() {
+        vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
+        vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);
+    });
 }
