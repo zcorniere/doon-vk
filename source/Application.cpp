@@ -1,9 +1,9 @@
 #include "Application.hpp"
 
-Application::Application(): window("Vulkan", 800, 600)
+Application::Application()
 {
     window.setKeyCallback(Application::keyboard_callback);
-    this->VulkanApplication::init(window);
+    this->VulkanApplication::init();
 }
 
 Application::~Application() {}

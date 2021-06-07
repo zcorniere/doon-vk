@@ -16,5 +16,4 @@ private:
     static void keyboard_callback(GLFWwindow *win, int key, int, int action, int);
 
 private:
-    Window window;
 };

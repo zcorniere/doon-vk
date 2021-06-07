@@ -26,9 +26,10 @@ public:
 protected:
     VulkanApplication();
     ~VulkanApplication();
-    void init(Window &);
+    void init();
 
 protected:
+    Window window;
     VkInstance instance = VK_NULL_HANDLE;
     VkDebugUtilsMessengerEXT debugUtilsMessenger = VK_NULL_HANDLE;
     VkPhysicalDevice physical_device = VK_NULL_HANDLE;
@@ -76,14 +77,14 @@ private:
     void initInstance();
     void initDebug();
     void pickPhysicalDevice();
-    void initSurface(Window &);
-    QueueFamilyIndices createLogicalDevice();
-    void createSwapchain(const QueueFamilyIndices &, Window &);
+    void initSurface();
+    void createLogicalDevice();
+    void createSwapchain();
     void createImageWiews();
     void createRenderPass();
     void createGraphicsPipeline();
     void createFramebuffers();
-    void createCommandPool(const QueueFamilyIndices &);
+    void createCommandPool();
     void createCommandBuffers();
     void createSyncObjects();
 

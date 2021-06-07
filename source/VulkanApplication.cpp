@@ -5,21 +5,25 @@
 #include "vk_init.hpp"
 #include <set>
 
-VulkanApplication::VulkanApplication() {}
 VulkanApplication::~VulkanApplication() { mainDeletionQueue.flush(); }
-void VulkanApplication::init(Window &win)
+VulkanApplication::VulkanApplication(): window("Vulkan", 800, 600)
+{
+    window.setUserPointer(this);
+    window.setResizeCallback(framebufferResizeCallback);
+}
+void VulkanApplication::init()
 {
     initInstance();
     initDebug();
-    initSurface(win);
+    initSurface();
     pickPhysicalDevice();
-    auto queueIndices = createLogicalDevice();
-    createSwapchain(queueIndices, win);
+    createLogicalDevice();
+    createSwapchain();
     createImageWiews();
     createRenderPass();
     createGraphicsPipeline();
     createFramebuffers();
-    createCommandPool(queueIndices);
+    createCommandPool();
     createCommandBuffers();
     createSyncObjects();
 }
@@ -93,13 +97,13 @@ void VulkanApplication::pickPhysicalDevice()
     }
 }
 
-void VulkanApplication::initSurface(Window &win)
+void VulkanApplication::initSurface()
 {
-    win.createSurface(instance, &surface);
+    window.createSurface(instance, &surface);
     mainDeletionQueue.push([&]() { vkDestroySurfaceKHR(instance, surface, nullptr); });
 }
 
-QueueFamilyIndices VulkanApplication::createLogicalDevice()
+void VulkanApplication::createLogicalDevice()
 {
     float fQueuePriority = 1.0f;
     auto indices = QueueFamilyIndices::findQueueFamilies(physical_device, surface);
@@ -126,23 +130,24 @@ QueueFamilyIndices VulkanApplication::createLogicalDevice()
 
     vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
     vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
-    return indices;
 }
 
-void VulkanApplication::createSwapchain(const QueueFamilyIndices &indices, Window &win)
+void VulkanApplication::createSwapchain()
 {
+    auto indices = QueueFamilyIndices::findQueueFamilies(physical_device, surface);
+
     auto swapChainSupport = SwapChainSupportDetails::querySwapChainSupport(physical_device, surface);
     auto surfaceFormat = swapChainSupport.chooseSwapSurfaceFormat();
     auto presentMode = swapChainSupport.chooseSwapPresentMode();
-    auto extent = swapChainSupport.chooseSwapExtent(win);
+    auto extent = swapChainSupport.chooseSwapExtent(window);
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
     if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
         imageCount = swapChainSupport.capabilities.maxImageCount;
     }
 
     VkSwapchainCreateInfoKHR createInfo{
-
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        .pNext = nullptr,
         .surface = surface,
         .minImageCount = imageCount,
         .imageFormat = surfaceFormat.format,
@@ -154,7 +159,7 @@ void VulkanApplication::createSwapchain(const QueueFamilyIndices &indices, Windo
         .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
         .presentMode = presentMode,
         .clipped = VK_TRUE,
-        .oldSwapchain = this->swapChain,
+        .oldSwapchain = nullptr,
     };
     uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
 
@@ -297,8 +302,9 @@ void VulkanApplication::createFramebuffers()
     });
 }
 
-void VulkanApplication::createCommandPool(const QueueFamilyIndices &indices)
+void VulkanApplication::createCommandPool()
 {
+    auto indices = QueueFamilyIndices::findQueueFamilies(physical_device, surface);
     VkCommandPoolCreateInfo poolInfo{
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .pNext = nullptr,
@@ -378,3 +384,5 @@ void VulkanApplication::createSyncObjects()
         }
     });
 }
+
+\ No newline at end of file
