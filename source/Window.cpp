@@ -21,14 +21,14 @@ void Window::initWindow()
 {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    // glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     window = glfwCreateWindow(width, height, windowName.c_str(), nullptr, nullptr);
 }
 
 void Window::setKeyCallback(GLFWkeyfun &&f) { glfwSetKeyCallback(window, f); }
 void Window::setCursorPosCallback(GLFWcursorposfun &&f) { glfwSetCursorPosCallback(window, f); }
-
+void Window::setResizeCallback(void(&&f)(GLFWwindow *, int, int)) { glfwSetFramebufferSizeCallback(window, f); }
 void Window::unsetKeyCallback()
 {
     glfwSetKeyCallback(window, [](GLFWwindow *, int, int, int, int) {});

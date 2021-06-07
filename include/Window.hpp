@@ -22,6 +22,7 @@ public:
 
     void setKeyCallback(GLFWkeyfun &&f);
     void setCursorPosCallback(GLFWcursorposfun &&f);
+    void setResizeCallback(void(&&)(GLFWwindow *, int, int));
 
     void unsetKeyCallback();
     void unsetCursorPosCallback();
