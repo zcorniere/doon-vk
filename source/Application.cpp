@@ -1,4 +1,5 @@
 #include "Application.hpp"
+#include "Logger.hpp"
 
 Application::Application()
 {
@@ -13,8 +14,8 @@ void Application::run()
     while (!window.shouldClose()) {
         window.pollEvent();
         drawFrame();
-        vkDeviceWaitIdle(device);
     }
+    vkDeviceWaitIdle(device);
 }
 
 void Application::drawFrame()
@@ -23,8 +24,15 @@ void Application::drawFrame()
     uint32_t imageIndex;
 
     VK_TRY(vkWaitForFences(device, 1, &frame.inFlightFences, VK_TRUE, UINT64_MAX));
-    VK_TRY(vkResetFences(device, 1, &frame.inFlightFences));
-    VK_TRY(vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, frame.imageAvailableSemaphore, nullptr, &imageIndex));
+
+    VkResult result =
+        vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, frame.imageAvailableSemaphore, nullptr, &imageIndex);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        return recreateSwapchain();
+    } else if (result != VK_SUCCESS) {
+        throw VulkanException(result);
+    }
 
     VkSemaphore waitSemaphores[] = {frame.imageAvailableSemaphore};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
@@ -40,6 +48,8 @@ void Application::drawFrame()
         .signalSemaphoreCount = 1,
         .pSignalSemaphores = signalSemaphores,
     };
+
+    VK_TRY(vkResetFences(device, 1, &frame.inFlightFences));
     VK_TRY(vkQueueSubmit(graphicsQueue, 1, &submitInfo, frame.inFlightFences));
 
     VkSwapchainKHR swapChains[] = {swapChain};
@@ -53,7 +63,14 @@ void Application::drawFrame()
         .pImageIndices = &imageIndex,
         .pResults = nullptr,
     };
-    VK_TRY(vkQueuePresentKHR(presentQueue, &presentInfo));
+    result = vkQueuePresentKHR(presentQueue, &presentInfo);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
+        framebufferResized = false;
+        return recreateSwapchain();
+    } else {
+        VK_TRY(result);
+    }
     currentFrame = (currentFrame + 1) % MAX_FRAME_FRAME_IN_FLIGHT;
 }
 

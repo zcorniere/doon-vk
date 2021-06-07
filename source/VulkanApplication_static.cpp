@@ -105,3 +105,8 @@ bool VulkanApplication::checkDeviceExtensionSupport(const VkPhysicalDevice &devi
     for (const auto &extension: availableExtensions) { requiredExtensions.erase(extension.extensionName); }
     return requiredExtensions.empty();
 }
+void VulkanApplication::framebufferResizeCallback(GLFWwindow *window, int, int)
+{
+    auto app = reinterpret_cast<VulkanApplication *>(glfwGetWindowUserPointer(window));
+    app->framebufferResized = true;
+}

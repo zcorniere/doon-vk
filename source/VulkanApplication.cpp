@@ -5,12 +5,18 @@
 #include "vk_init.hpp"
 #include <set>
 
-VulkanApplication::~VulkanApplication() { mainDeletionQueue.flush(); }
 VulkanApplication::VulkanApplication(): window("Vulkan", 800, 600)
 {
     window.setUserPointer(this);
     window.setResizeCallback(framebufferResizeCallback);
 }
+
+VulkanApplication::~VulkanApplication()
+{
+    swapchainDeletionQueue.flush();
+    mainDeletionQueue.flush();
+}
+
 void VulkanApplication::init()
 {
     initInstance();
@@ -173,10 +179,12 @@ void VulkanApplication::createSwapchain()
         createInfo.pQueueFamilyIndices = nullptr;    // Optional
     }
     VK_TRY(vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain));
-    mainDeletionQueue.push([&]() { vkDestroySwapchainKHR(device, swapChain, nullptr); });
+    swapchainDeletionQueue.push([&]() { vkDestroySwapchainKHR(device, swapChain, nullptr); });
+
     vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
     swapChainImages.resize(imageCount);
     vkGetSwapchainImagesKHR(device, swapChain, &imageCount, swapChainImages.data());
+
     swapChainImageFormat = surfaceFormat.format;
     swapChainExtent = extent;
 }
@@ -184,11 +192,12 @@ void VulkanApplication::createSwapchain()
 void VulkanApplication::createImageWiews()
 {
     swapChainImageViews.resize(swapChainImages.size());
+
     for (size_t i = 0; i < swapChainImages.size(); ++i) {
-        auto createInfo = vk_init::populateVkImageViewCreateInfo(swapChainImages.at(i), swapChainImageFormat);
-        VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &swapChainImageViews.at(i)));
+        auto createInfo = vk_init::populateVkImageViewCreateInfo(swapChainImages[i], swapChainImageFormat);
+        VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &swapChainImageViews[i]));
     }
-    mainDeletionQueue.push([&]() {
+    swapchainDeletionQueue.push([&]() {
         for (auto &imageView: swapChainImageViews) { vkDestroyImageView(device, imageView, nullptr); }
     });
 }
@@ -234,7 +243,7 @@ void VulkanApplication::createRenderPass()
         .pDependencies = &dependency,
     };
     VK_TRY(vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass));
-    mainDeletionQueue.push([&]() { vkDestroyRenderPass(device, renderPass, nullptr); });
+    swapchainDeletionQueue.push([&]() { vkDestroyRenderPass(device, renderPass, nullptr); });
 }
 void VulkanApplication::createGraphicsPipeline()
 {
@@ -274,7 +283,7 @@ void VulkanApplication::createGraphicsPipeline()
 
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
-    mainDeletionQueue.push([&]() {
+    swapchainDeletionQueue.push([&]() {
         vkDestroyPipeline(device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     });
@@ -297,7 +306,7 @@ void VulkanApplication::createFramebuffers()
 
         VK_TRY(vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]));
     }
-    mainDeletionQueue.push([&]() {
+    swapchainDeletionQueue.push([&]() {
         for (auto &framebuffer: swapChainFramebuffers) { vkDestroyFramebuffer(device, framebuffer, nullptr); }
     });
 }
@@ -385,4 +394,19 @@ void VulkanApplication::createSyncObjects()
     });
 }
 
-\ No newline at end of file
+void VulkanApplication::recreateSwapchain()
+{
+    logger->info("Swapchain") << "Recreaing swapchain...";
+    LOGGER_ENDL;
+    vkDeviceWaitIdle(device);
+    swapchainDeletionQueue.flush();
+
+    createSwapchain();
+    createImageWiews();
+    createRenderPass();
+    createGraphicsPipeline();
+    createFramebuffers();
+    createCommandBuffers();
+    logger->info("Swapchain") << "Swapchain recreation complete...";
+    LOGGER_ENDL;
+}

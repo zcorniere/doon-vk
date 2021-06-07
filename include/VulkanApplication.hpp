@@ -23,10 +23,12 @@ public:
     const bool enableValidationLayers = true;
 #endif
 
-protected:
+public:
     VulkanApplication();
     ~VulkanApplication();
     void init();
+    void recreateSwapchain();
+    bool framebufferResized = false;
 
 protected:
     Window window;
@@ -72,6 +74,7 @@ private:
                                   const VkDebugUtilsMessengerCallbackDataEXT *, void *);
     static bool isDeviceSuitable(const VkPhysicalDevice &gpu, const VkSurfaceKHR &surface);
     static bool checkDeviceExtensionSupport(const VkPhysicalDevice &device);
+    static void framebufferResizeCallback(GLFWwindow *, int, int);
 
 private:
     void initInstance();
@@ -90,4 +93,5 @@ private:
 
 private:
     DeleteionQueue mainDeletionQueue;
+    DeleteionQueue swapchainDeletionQueue;
 };
