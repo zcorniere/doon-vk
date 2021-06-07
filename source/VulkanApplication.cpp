@@ -396,6 +396,13 @@ void VulkanApplication::createSyncObjects()
 
 void VulkanApplication::recreateSwapchain()
 {
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(window.getWindow(), &width, &height);
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(window.getWindow(), &width, &height);
+        glfwWaitEvents();
+    }
+
     logger->info("Swapchain") << "Recreaing swapchain...";
     LOGGER_ENDL;
     vkDeviceWaitIdle(device);
