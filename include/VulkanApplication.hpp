@@ -1,18 +1,18 @@
 #pragma once
 
 #include "DeletionQueue.hpp"
+#include "Frame.hpp"
 #include "QueueFamilyIndices.hpp"
+#include "Window.hpp"
 #include "vk_utils.hpp"
 
-#include "Window.hpp"
-#include <vector>
-
 #include <stdexcept>
+#include <vector>
 #include <vulkan/vulkan.h>
 
 const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
-
 const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+constexpr uint8_t MAX_FRAME_FRAME_IN_FLIGHT = 2;
 
 class VulkanApplication
 {
@@ -61,8 +61,8 @@ protected:
     std::vector<VkCommandBuffer> commandBuffers;
 
     // Sync
-    VkSemaphore imageAvailableSemaphore;
-    VkSemaphore renderFinishedSemaphore;
+    uint8_t currentFrame = 0;
+    Frame frames[MAX_FRAME_FRAME_IN_FLIGHT];
 
 private:
     static std::vector<const char *> getRequiredExtensions(bool bEnableValidationLayers = false);
@@ -85,7 +85,7 @@ private:
     void createFramebuffers();
     void createCommandPool(const QueueFamilyIndices &);
     void createCommandBuffers();
-    void createSemaphores();
+    void createSyncObjects();
 
 private:
     DeleteionQueue mainDeletionQueue;

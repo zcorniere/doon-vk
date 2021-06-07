@@ -21,7 +21,7 @@ void VulkanApplication::init(Window &win)
     createFramebuffers();
     createCommandPool(queueIndices);
     createCommandBuffers();
-    createSemaphores();
+    createSyncObjects();
 }
 
 void VulkanApplication::initInstance()
@@ -352,16 +352,29 @@ void VulkanApplication::createCommandBuffers()
     }
 }
 
-void VulkanApplication::createSemaphores()
+void VulkanApplication::createSyncObjects()
 {
     VkSemaphoreCreateInfo semaphoreInfo{
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
         .pNext = nullptr,
     };
-    VK_TRY(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphore));
-    VK_TRY(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore));
+    VkFenceCreateInfo fenceInfo{
+        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = VK_FENCE_CREATE_SIGNALED_BIT,
+    };
+
+    for (auto &f: frames) {
+        VK_TRY(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &f.imageAvailableSemaphore));
+        VK_TRY(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &f.renderFinishedSemaphore));
+        VK_TRY(vkCreateFence(device, &fenceInfo, nullptr, &f.inFlightFences));
+    }
+
     mainDeletionQueue.push([&]() {
-        vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
-        vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);
+        for (const auto f: frames) {
+            vkDestroyFence(device, f.inFlightFences, nullptr);
+            vkDestroySemaphore(device, f.renderFinishedSemaphore, nullptr);
+            vkDestroySemaphore(device, f.imageAvailableSemaphore, nullptr);
+        }
     });
 }

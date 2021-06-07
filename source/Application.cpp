@@ -19,24 +19,28 @@ void Application::run()
 
 void Application::drawFrame()
 {
+    auto &frame = frames[currentFrame];
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    VK_TRY(vkWaitForFences(device, 1, &frame.inFlightFences, VK_TRUE, UINT64_MAX));
+    VK_TRY(vkResetFences(device, 1, &frame.inFlightFences));
+    VK_TRY(vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, frame.imageAvailableSemaphore, nullptr, &imageIndex));
 
-    VkSemaphore waitSemaphores[] = {imageAvailableSemaphore};
+    VkSemaphore waitSemaphores[] = {frame.imageAvailableSemaphore};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = waitSemaphores;
-    submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
-
-    VkSemaphore signalSemaphores[] = {renderFinishedSemaphore};
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = signalSemaphores;
-    VK_TRY(vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE));
+    VkSemaphore signalSemaphores[] = {frame.renderFinishedSemaphore};
+    VkSubmitInfo submitInfo{
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .pNext = nullptr,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = waitSemaphores,
+        .pWaitDstStageMask = waitStages,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &commandBuffers[imageIndex],
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores = signalSemaphores,
+    };
+    VK_TRY(vkQueueSubmit(graphicsQueue, 1, &submitInfo, frame.inFlightFences));
 
     VkSwapchainKHR swapChains[] = {swapChain};
     VkPresentInfoKHR presentInfo{
@@ -49,8 +53,10 @@ void Application::drawFrame()
         .pImageIndices = &imageIndex,
         .pResults = nullptr,
     };
-    vkQueuePresentKHR(presentQueue, &presentInfo);
+    VK_TRY(vkQueuePresentKHR(presentQueue, &presentInfo));
+    currentFrame = (currentFrame + 1) % MAX_FRAME_FRAME_IN_FLIGHT;
 }
+
 void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, int)
 {
     switch (action) {
