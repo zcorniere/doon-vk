@@ -5,11 +5,11 @@ VkDebugUtilsMessengerCreateInfoEXT vk_init::populateDebugUtilsMessengerCreateInf
                        const VkDebugUtilsMessengerCallbackDataEXT *, void *))
 {
 
-    VkDebugUtilsMessageSeverityFlagsEXT severityFlags(vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
-                                                      vk::DebugUtilsMessageSeverityFlagBitsEXT::eError);
-    VkDebugUtilsMessageTypeFlagsEXT messageTypeFlags(vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
-                                                     vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
-                                                     vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation);
+    VkDebugUtilsMessageSeverityFlagsEXT severityFlags(VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                                                      VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT);
+    VkDebugUtilsMessageTypeFlagsEXT messageTypeFlags(VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                                                     VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
+                                                     VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT);
     return VkDebugUtilsMessengerCreateInfoEXT{
         .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
         .pNext = nullptr,
