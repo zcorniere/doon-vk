@@ -3,6 +3,7 @@
 #include "DeletionQueue.hpp"
 #include "Frame.hpp"
 #include "QueueFamilyIndices.hpp"
+#include "Vertex.hpp"
 #include "Window.hpp"
 #include "vk_utils.hpp"
 
@@ -12,6 +13,11 @@
 
 const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
 const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+
+const std::vector<Vertex> vertices = {{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+                                      {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+                                      {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
+
 constexpr uint8_t MAX_FRAME_FRAME_IN_FLIGHT = 2;
 
 class VulkanApplication
@@ -29,6 +35,34 @@ public:
     void init();
     void recreateSwapchain();
     bool framebufferResized = false;
+
+private:
+    static std::vector<const char *> getRequiredExtensions(bool bEnableValidationLayers = false);
+    static bool checkValiationLayerSupport();
+    static uint32_t debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT, VkDebugUtilsMessageTypeFlagsEXT,
+                                  const VkDebugUtilsMessengerCallbackDataEXT *, void *);
+    static bool isDeviceSuitable(const VkPhysicalDevice &gpu, const VkSurfaceKHR &surface);
+    static bool checkDeviceExtensionSupport(const VkPhysicalDevice &device);
+    static void framebufferResizeCallback(GLFWwindow *, int, int);
+    static uint32_t findMemoryType(VkPhysicalDevice &physical_device, uint32_t typeFilter,
+                                   VkMemoryPropertyFlags properties);
+
+private:
+    void initInstance();
+    void initDebug();
+    void pickPhysicalDevice();
+    void initSurface();
+    void createLogicalDevice();
+    void createAllocator();
+    void createSwapchain();
+    void createImageWiews();
+    void createRenderPass();
+    void createGraphicsPipeline();
+    void createFramebuffers();
+    void createCommandPool();
+    void createCommandBuffers();
+    void createSyncObjects();
+    void createVertexBuffer();
 
 protected:
     Window window;
@@ -67,29 +101,9 @@ protected:
     uint8_t currentFrame = 0;
     Frame frames[MAX_FRAME_FRAME_IN_FLIGHT];
 
-private:
-    static std::vector<const char *> getRequiredExtensions(bool bEnableValidationLayers = false);
-    static bool checkValiationLayerSupport();
-    static uint32_t debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT, VkDebugUtilsMessageTypeFlagsEXT,
-                                  const VkDebugUtilsMessengerCallbackDataEXT *, void *);
-    static bool isDeviceSuitable(const VkPhysicalDevice &gpu, const VkSurfaceKHR &surface);
-    static bool checkDeviceExtensionSupport(const VkPhysicalDevice &device);
-    static void framebufferResizeCallback(GLFWwindow *, int, int);
-
-private:
-    void initInstance();
-    void initDebug();
-    void pickPhysicalDevice();
-    void initSurface();
-    void createLogicalDevice();
-    void createSwapchain();
-    void createImageWiews();
-    void createRenderPass();
-    void createGraphicsPipeline();
-    void createFramebuffers();
-    void createCommandPool();
-    void createCommandBuffers();
-    void createSyncObjects();
+    // Vertex push
+    VkBuffer vertexBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory vertexBufferMemory = VK_NULL_HANDLE;
 
 private:
     DeleteionQueue mainDeletionQueue;

@@ -110,3 +110,15 @@ void VulkanApplication::framebufferResizeCallback(GLFWwindow *window, int, int)
     auto app = reinterpret_cast<VulkanApplication *>(glfwGetWindowUserPointer(window));
     app->framebufferResized = true;
 }
+
+uint32_t VulkanApplication::findMemoryType(VkPhysicalDevice &physicalDevice, uint32_t typeFilter,
+                                           VkMemoryPropertyFlags properties)
+{
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; ++i) {
+        if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & properties)) { return i; }
+    }
+    throw VulkanException("failed to find suitable memory type !");
+}
