@@ -34,6 +34,8 @@ public:
     ~VulkanApplication();
     void init();
     void recreateSwapchain();
+    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer &buffer,
+                      VkDeviceMemory &bufferMemory);
     bool framebufferResized = false;
 
 private:
@@ -63,6 +65,8 @@ private:
     void createCommandBuffers();
     void createSyncObjects();
     void createVertexBuffer();
+
+    void copyBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, VkDeviceSize &size);
 
 protected:
     Window window;
