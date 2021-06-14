@@ -13,6 +13,7 @@ public:
 
 private:
     void drawFrame();
+    void updateUniformBuffer(uint32_t currentImage);
     static void keyboard_callback(GLFWwindow *win, int key, int, int action, int);
 
 private:

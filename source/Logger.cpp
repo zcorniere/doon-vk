@@ -71,7 +71,7 @@ std::stringstream &Logger::info(const std::string &msg)
 std::stringstream &Logger::debug(const std::string &msg)
 {
     auto &buf = this->raw();
-    buf << BRACKETS(36, "INFO") << BRACKETS(36, msg);
+    buf << BRACKETS(36, "DEBUG") << BRACKETS(36, msg);
     return buf;
 }
 

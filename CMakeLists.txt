@@ -29,6 +29,10 @@ add_executable(${PROJECT_NAME} source/main.cpp
 add_shader(${PROJECT_NAME} default_triangle.vert)
 add_shader(${PROJECT_NAME} default_triangle.frag)
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+  -DGLM_FORCE_RADIANS
+)
+
 if(MSVC)
   target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX)
 else()
