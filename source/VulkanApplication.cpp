@@ -31,14 +31,15 @@ void VulkanApplication::init()
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
+    createSyncObjects();
     createVertexBuffer();
     createIndexBuffer();
     createUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
     createCommandBuffers();
-    createSyncObjects();
 }
+
 void VulkanApplication::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
                                      VkBuffer &buffer, VkDeviceMemory &bufferMemory)
 {
@@ -356,7 +357,11 @@ void VulkanApplication::createCommandPool()
         .queueFamilyIndex = indices.graphicsFamily.value(),
     };
     VK_TRY(vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool));
-    mainDeletionQueue.push([&]() { vkDestroyCommandPool(device, commandPool, nullptr); });
+    VK_TRY(vkCreateCommandPool(device, &poolInfo, nullptr, &uploadContext.commandPool));
+    mainDeletionQueue.push([&]() {
+        vkDestroyCommandPool(device, uploadContext.commandPool, nullptr);
+        vkDestroyCommandPool(device, commandPool, nullptr);
+    });
 }
 
 void VulkanApplication::createCommandBuffers()
@@ -424,7 +429,13 @@ void VulkanApplication::createSyncObjects()
         .pNext = nullptr,
         .flags = VK_FENCE_CREATE_SIGNALED_BIT,
     };
+    VkFenceCreateInfo uploadFenceInfo{
+        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+    };
 
+    VK_TRY(vkCreateFence(device, &uploadFenceInfo, nullptr, &uploadContext.uploadFence));
     for (auto &f: frames) {
         VK_TRY(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &f.imageAvailableSemaphore));
         VK_TRY(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &f.renderFinishedSemaphore));
@@ -432,6 +443,7 @@ void VulkanApplication::createSyncObjects()
     }
 
     mainDeletionQueue.push([&]() {
+        vkDestroyFence(device, uploadContext.uploadFence, nullptr);
         for (const auto f: frames) {
             vkDestroyFence(device, f.inFlightFences, nullptr);
             vkDestroySemaphore(device, f.renderFinishedSemaphore, nullptr);
@@ -613,35 +625,57 @@ void VulkanApplication::recreateSwapchain()
 
 void VulkanApplication::copyBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, VkDeviceSize &size)
 {
-    VkCommandBufferAllocateInfo allocInfo{
+    immediateCommand([=](VkCommandBuffer &cmd) {
+        VkBufferCopy copyRegion{
+            .srcOffset = 0,
+            .dstOffset = 0,
+            .size = size,
+        };
+        vkCmdCopyBuffer(cmd, srcBuffer, dstBuffer, 1, &copyRegion);
+    });
+}
+
+
+void VulkanApplication::immediateCommand(std::function<void(VkCommandBuffer &)> &&function)
+{
+    VkCommandBufferAllocateInfo cmdAllocInfo{
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .pNext = nullptr,
-        .commandPool = commandPool,
+        .commandPool = uploadContext.commandPool,
         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
         .commandBufferCount = 1,
     };
-    VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
 
-    VkCommandBufferBeginInfo beginInfo{
+    VkCommandBuffer cmd{};
+    VK_TRY(vkAllocateCommandBuffers(device, &cmdAllocInfo, &cmd));
+
+    VkCommandBufferBeginInfo cmdBeginInfo{
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .pNext = nullptr,
         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        .pInheritanceInfo = nullptr,
     };
-    VkBufferCopy copyRegion{};
-    copyRegion.size = size;
+    VK_TRY(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
-    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
-    vkEndCommandBuffer(commandBuffer);
+    function(cmd);
 
-    VkSubmitInfo submitInfo{
+    VK_TRY(vkEndCommandBuffer(cmd));
+
+    VkSubmitInfo submit{
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .pNext = nullptr,
+        .waitSemaphoreCount = 0,
+        .pWaitSemaphores = nullptr,
+        .pWaitDstStageMask = nullptr,
         .commandBufferCount = 1,
-        .pCommandBuffers = &commandBuffer,
+        .pCommandBuffers = &cmd,
+        .signalSemaphoreCount = 0,
+        .pSignalSemaphores = nullptr,
     };
-    vkQueueSubmit(graphicsQueue, 1, &submitInfo, nullptr);
-    vkQueueWaitIdle(graphicsQueue);
-    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+
+    VK_TRY(vkQueueSubmit(graphicsQueue, 1, &submit, uploadContext.uploadFence));
+
+    VK_TRY(vkWaitForFences(device, 1, &uploadContext.uploadFence, true, 999999999999999));
+    VK_TRY(vkResetFences(device, 1, &uploadContext.uploadFence));
+    VK_TRY(vkResetCommandPool(device, uploadContext.commandPool, 0));
 }

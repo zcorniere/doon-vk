@@ -76,6 +76,8 @@ private:
     void createDescriptorSets();
     void copyBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, VkDeviceSize &size);
 
+    void immediateCommand(std::function<void(VkCommandBuffer &)> &&);
+
 protected:
     Window window;
     VkInstance instance = VK_NULL_HANDLE;
@@ -109,6 +111,12 @@ protected:
     // Command Pool
     VkCommandPool commandPool = VK_NULL_HANDLE;
     std::vector<VkCommandBuffer> commandBuffers;
+
+    // Instant commandbuffers
+    struct {
+        VkFence uploadFence = VK_NULL_HANDLE;
+        VkCommandPool commandPool = VK_NULL_HANDLE;
+    } uploadContext = {};
 
     // Sync
     uint8_t currentFrame = 0;
