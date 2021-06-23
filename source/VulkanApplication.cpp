@@ -4,6 +4,7 @@
 #include "SwapChainSupportDetails.hpp"
 #include "vk_init.hpp"
 #include <set>
+#include <stb_image.h>
 
 VulkanApplication::VulkanApplication(): window("Vulkan", 800, 600)
 {
@@ -32,6 +33,10 @@ void VulkanApplication::init()
     createFramebuffers();
     createCommandPool();
     createSyncObjects();
+
+    createTextureImage();
+    createTextureImageView();
+    createTextureSampler();
     createVertexBuffer();
     createIndexBuffer();
     createUniformBuffers();
@@ -111,6 +116,7 @@ void VulkanApplication::initDebug()
         if (func != nullptr) { func(instance, debugUtilsMessenger, nullptr); }
     });
 }
+
 void VulkanApplication::pickPhysicalDevice()
 {
     uint32_t deviceCount = 0;
@@ -152,7 +158,9 @@ void VulkanApplication::createLogicalDevice()
         queueCreateInfos.push_back(vk_init::populateDeviceQueueCreateInfo(1, queueFamily, fQueuePriority));
     }
 
-    VkPhysicalDeviceFeatures deviceFeature{};
+    VkPhysicalDeviceFeatures deviceFeature{
+        .samplerAnisotropy = VK_TRUE,
+    };
 
     VkDeviceCreateInfo createInfo{
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -508,6 +516,13 @@ void VulkanApplication::createIndexBuffer()
 
 void VulkanApplication::createDescriptorSetLayout()
 {
+    VkDescriptorSetLayoutBinding samplerLayoutBiding{
+        .binding = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .pImmutableSamplers = nullptr,
+    };
     VkDescriptorSetLayoutBinding uboLayoutBinding{
         .binding = 0,
         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -515,11 +530,13 @@ void VulkanApplication::createDescriptorSetLayout()
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
         .pImmutableSamplers = nullptr,
     };
+
+    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, samplerLayoutBiding};
     VkDescriptorSetLayoutCreateInfo layoutInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
         .pNext = nullptr,
-        .bindingCount = 1,
-        .pBindings = &uboLayoutBinding,
+        .bindingCount = static_cast<uint32_t>(bindings.size()),
+        .pBindings = bindings.data(),
     };
     VK_TRY(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout));
     mainDeletionQueue.push([&]() { vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr); });
@@ -547,16 +564,19 @@ void VulkanApplication::createUniformBuffers()
 
 void VulkanApplication::createDescriptorPool()
 {
-    VkDescriptorPoolSize poolSize{
-        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = static_cast<uint32_t>(swapChainImages.size()),
-    };
+    std::array<VkDescriptorPoolSize, 2> poolSizes{};
+
+    poolSizes.at(0).type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes.at(0).descriptorCount = static_cast<uint32_t>(swapChainImages.size());
+    poolSizes.at(1).type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes.at(1).descriptorCount = static_cast<uint32_t>(swapChainImages.size());
+
     VkDescriptorPoolCreateInfo poolInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .pNext = nullptr,
         .maxSets = static_cast<uint32_t>(swapChainImages.size()),
-        .poolSizeCount = 1,
-        .pPoolSizes = &poolSize,
+        .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
+        .pPoolSizes = poolSizes.data(),
     };
     VK_TRY(vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool));
     swapchainDeletionQueue.push([&]() { vkDestroyDescriptorPool(device, descriptorPool, nullptr); });
@@ -580,20 +600,101 @@ void VulkanApplication::createDescriptorSets()
             .offset = 0,
             .range = sizeof(UniformBufferObject),
         };
-        VkWriteDescriptorSet descriptorWrite{
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .pNext = nullptr,
-            .dstSet = descriptorSets[i],
-            .dstBinding = 0,
-            .dstArrayElement = 0,
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            .pImageInfo = nullptr,
-            .pBufferInfo = &bufferInfo,
-            .pTexelBufferView = nullptr,
+        VkDescriptorImageInfo imageInfo{
+            .sampler = textureSampler,
+            .imageView = textureImageView,
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         };
-        vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+        std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+        descriptorWrites.at(0).sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites.at(0).dstSet = descriptorSets[i];
+        descriptorWrites.at(0).dstBinding = 0;
+        descriptorWrites.at(0).dstArrayElement = 0;
+        descriptorWrites.at(0).descriptorCount = 1;
+        descriptorWrites.at(0).descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrites.at(0).pBufferInfo = &bufferInfo;
+
+        descriptorWrites.at(1).sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites.at(1).dstSet = descriptorSets[i];
+        descriptorWrites.at(1).dstBinding = 1;
+        descriptorWrites.at(1).dstArrayElement = 0;
+        descriptorWrites.at(1).descriptorCount = 1;
+        descriptorWrites.at(1).descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrites.at(1).pImageInfo = &imageInfo;
+
+        vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0,
+                               nullptr);
     }
+}
+
+void VulkanApplication::createTextureImage()
+{
+    int texWidth, texHeight, texChannels;
+    stbi_uc *pixels = stbi_load("../textures/redbrick.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    VkDeviceSize imageSize = texWidth * texHeight * 4;
+
+    if (!pixels) throw std::runtime_error("failed to load texture image");
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
+                 stagingBufferMemory);
+    void *data = nullptr;
+    vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
+    std::memcpy(data, pixels, static_cast<size_t>(imageSize));
+    vkUnmapMemory(device, stagingBufferMemory);
+    stbi_image_free(pixels);
+
+    createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                textureImage, textureImageMemory);
+    transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
+                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+    transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+    mainDeletionQueue.push([&]() {
+        vkDestroyImage(device, textureImage, nullptr);
+        vkFreeMemory(device, textureImageMemory, nullptr);
+    });
+}
+
+void VulkanApplication::createTextureImageView()
+{
+    auto createInfo = vk_init::populateVkImageViewCreateInfo(textureImage, VK_FORMAT_R8G8B8A8_SRGB);
+    VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &textureImageView));
+    mainDeletionQueue.push([&]() { vkDestroyImageView(device, textureImageView, nullptr); });
+}
+
+void VulkanApplication::createTextureSampler()
+{
+    VkPhysicalDeviceProperties properties{};
+    vkGetPhysicalDeviceProperties(physical_device, &properties);
+
+    VkSamplerCreateInfo samplerInfo{
+        .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        .pNext = nullptr,
+        .magFilter = VK_FILTER_LINEAR,
+        .minFilter = VK_FILTER_LINEAR,
+        .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+        .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .mipLodBias = 0.0f,
+        .anisotropyEnable = VK_TRUE,
+        .maxAnisotropy = properties.limits.maxSamplerAnisotropy,
+        .compareEnable = VK_FALSE,
+        .compareOp = VK_COMPARE_OP_ALWAYS,
+        .minLod = 0.0f,
+        .maxLod = 0.0f,
+        .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+        .unnormalizedCoordinates = VK_FALSE,
+    };
+    VK_TRY(vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler));
+    mainDeletionQueue.push([&]() { vkDestroySampler(device, textureSampler, nullptr); });
 }
 
 void VulkanApplication::recreateSwapchain()
@@ -621,61 +722,4 @@ void VulkanApplication::recreateSwapchain()
     createCommandBuffers();
     logger->info("Swapchain") << "Swapchain recreation complete...";
     LOGGER_ENDL;
-}
-
-void VulkanApplication::copyBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, VkDeviceSize &size)
-{
-    immediateCommand([=](VkCommandBuffer &cmd) {
-        VkBufferCopy copyRegion{
-            .srcOffset = 0,
-            .dstOffset = 0,
-            .size = size,
-        };
-        vkCmdCopyBuffer(cmd, srcBuffer, dstBuffer, 1, &copyRegion);
-    });
-}
-
-
-void VulkanApplication::immediateCommand(std::function<void(VkCommandBuffer &)> &&function)
-{
-    VkCommandBufferAllocateInfo cmdAllocInfo{
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .pNext = nullptr,
-        .commandPool = uploadContext.commandPool,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = 1,
-    };
-
-    VkCommandBuffer cmd{};
-    VK_TRY(vkAllocateCommandBuffers(device, &cmdAllocInfo, &cmd));
-
-    VkCommandBufferBeginInfo cmdBeginInfo{
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .pNext = nullptr,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-        .pInheritanceInfo = nullptr,
-    };
-    VK_TRY(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
-
-    function(cmd);
-
-    VK_TRY(vkEndCommandBuffer(cmd));
-
-    VkSubmitInfo submit{
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .pNext = nullptr,
-        .waitSemaphoreCount = 0,
-        .pWaitSemaphores = nullptr,
-        .pWaitDstStageMask = nullptr,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &cmd,
-        .signalSemaphoreCount = 0,
-        .pSignalSemaphores = nullptr,
-    };
-
-    VK_TRY(vkQueueSubmit(graphicsQueue, 1, &submit, uploadContext.uploadFence));
-
-    VK_TRY(vkWaitForFences(device, 1, &uploadContext.uploadFence, true, 999999999999999));
-    VK_TRY(vkResetFences(device, 1, &uploadContext.uploadFence));
-    VK_TRY(vkResetCommandPool(device, uploadContext.commandPool, 0));
 }

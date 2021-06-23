@@ -18,6 +18,7 @@ add_subdirectory(lib)
 add_executable(${PROJECT_NAME} source/main.cpp
                                source/Window.cpp
                                source/VulkanApplication.cpp
+                               source/VulkanApplication_helpers.cpp
                                source/VulkanApplication_static.cpp
                                source/vk_init.cpp
                                source/vk_utils.cpp
@@ -42,6 +43,7 @@ endif()
 target_include_directories(${PROJECT_NAME} PRIVATE include/)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan)
-target_link_libraries(${PROJECT_NAME} PRIVATE glfw
+target_link_libraries(${PROJECT_NAME} PRIVATE stb
+                                              glfw
                                               glm
 )

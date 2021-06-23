@@ -31,7 +31,7 @@ VkDeviceQueueCreateInfo vk_init::populateDeviceQueueCreateInfo(const uint32_t co
     };
 }
 
-VkImageViewCreateInfo vk_init::populateVkImageViewCreateInfo(VkImage &img, VkFormat &forma)
+VkImageViewCreateInfo vk_init::populateVkImageViewCreateInfo(VkImage &img, VkFormat forma)
 {
     return VkImageViewCreateInfo{
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
