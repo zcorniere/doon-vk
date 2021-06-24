@@ -29,6 +29,7 @@ VkPipelineColorBlendAttachmentState populateVkPipelineColorBlendAttachmentState(
 VkPipelineLayoutCreateInfo populateVkPipelineLayoutCreateInfo(const std::vector<VkDescriptorSetLayout> &setLayout,
                                                               const std::vector<VkPushConstantRange> &pushLayout);
 
+VkPipelineDepthStencilStateCreateInfo populateVkPipelineDepthStencilStateCreateInfo();
 namespace empty
 {
     VkPipelineLayoutCreateInfo populateVkPipelineLayoutCreateInfo();

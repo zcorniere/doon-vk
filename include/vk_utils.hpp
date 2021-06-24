@@ -10,6 +10,9 @@ namespace vk_utils
 {
 std::vector<std::byte> readFile(const std::string &filename);
 VkShaderModule createShaderModule(const VkDevice &device, const std::vector<std::byte> &code);
+VkFormat findSupportedFormat(VkPhysicalDevice &gpu, const std::vector<VkFormat> &candidates, VkImageTiling tiling,
+                             VkFormatFeatureFlags features);
+bool hasStencilComponent(VkFormat format);
 namespace tools
 {
     std::string errorString(VkResult errorCode);

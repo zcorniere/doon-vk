@@ -62,6 +62,7 @@ VkShaderModuleCreateInfo vk_init::populateVkShaderModuleCreateInfo(const std::ve
     return VkShaderModuleCreateInfo{
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
         .pNext = nullptr,
+        .flags = 0,
         .codeSize = code.size(),
         .pCode = reinterpret_cast<const uint32_t *>(code.data()),
     };
@@ -74,6 +75,7 @@ VkPipelineShaderStageCreateInfo vk_init::populateVkPipelineShaderStageCreateInfo
     return VkPipelineShaderStageCreateInfo{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
         .pNext = nullptr,
+        .flags = 0,
         .stage = stage,
         .module = module,
         .pName = entryPoint,
@@ -87,6 +89,7 @@ vk_init::populateVkPipelineVertexInputStateCreateInfo(const std::vector<VkVertex
     return VkPipelineVertexInputStateCreateInfo{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
         .pNext = nullptr,
+        .flags = 0,
         .vertexBindingDescriptionCount = static_cast<uint32_t>(binding.size()),
         .pVertexBindingDescriptions = binding.data(),
         .vertexAttributeDescriptionCount = static_cast<uint32_t>(attribute.size()),
@@ -99,6 +102,7 @@ VkPipelineInputAssemblyStateCreateInfo vk_init::populateVkPipelineInputAssemblyC
     return VkPipelineInputAssemblyStateCreateInfo{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
         .pNext = nullptr,
+        .flags = 0,
         .topology = topology,
         .primitiveRestartEnable = restart,
     };
@@ -110,6 +114,7 @@ VkPipelineRasterizationStateCreateInfo vk_init::populateVkPipelineRasterizationS
 
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
         .pNext = nullptr,
+        .flags = 0,
         .depthClampEnable = VK_FALSE,
         .rasterizerDiscardEnable = VK_FALSE,
         .polygonMode = mode,
@@ -129,6 +134,7 @@ VkPipelineMultisampleStateCreateInfo vk_init::populateVkPipelineMultisampleState
 
         .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
         .pNext = nullptr,
+        .flags = 0,
         .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
         .sampleShadingEnable = VK_FALSE,
         .minSampleShading = 1.0f,
@@ -165,6 +171,25 @@ vk_init::populateVkPipelineLayoutCreateInfo(const std::vector<VkDescriptorSetLay
     createInfo.pushConstantRangeCount = static_cast<uint32_t>(pushLayout.size());
     createInfo.pPushConstantRanges = pushLayout.data();
     return createInfo;
+}
+
+VkPipelineDepthStencilStateCreateInfo vk_init::populateVkPipelineDepthStencilStateCreateInfo()
+{
+    return VkPipelineDepthStencilStateCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .depthTestEnable = VK_TRUE,
+        .depthWriteEnable = VK_TRUE,
+        .depthCompareOp = VK_COMPARE_OP_LESS,
+        .depthBoundsTestEnable = VK_FALSE,
+        .stencilTestEnable = VK_FALSE,
+        .front = {},
+        .back = {},
+        .minDepthBounds = 0.0f,
+        .maxDepthBounds = 1.0f,
+
+    };
 }
 
 VkPipelineLayoutCreateInfo vk_init::empty::populateVkPipelineLayoutCreateInfo()
