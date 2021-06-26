@@ -3,6 +3,7 @@
 #include "DeletionQueue.hpp"
 #include "Frame.hpp"
 #include "QueueFamilyIndices.hpp"
+#include "Texture.hpp"
 #include "Vertex.hpp"
 #include "Window.hpp"
 #include "vk_utils.hpp"
@@ -80,8 +81,7 @@ private:
     void createUniformBuffers();
     void createDescriptorPool();
     void createDescriptorSets();
-    void createTextureImage();
-    void createTextureImageView();
+    void loadTextures();
     void createTextureSampler();
     void createDepthResources();
     void copyBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, VkDeviceSize &size);
@@ -152,9 +152,7 @@ protected:
     std::vector<VkDescriptorSet> descriptorSets;
 
     // Texture
-    VkImage textureImage = VK_NULL_HANDLE;
-    VkDeviceMemory textureImageMemory = VK_NULL_HANDLE;
-    VkImageView textureImageView = VK_NULL_HANDLE;
+    std::unordered_map<std::string, Texture> loadedTextures;
     VkSampler textureSampler = VK_NULL_HANDLE;
 
     // Depthbuffer

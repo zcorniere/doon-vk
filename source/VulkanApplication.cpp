@@ -35,8 +35,7 @@ void VulkanApplication::init()
     createDepthResources();
     createFramebuffers();
 
-    createTextureImage();
-    createTextureImageView();
+    loadTextures();
     createTextureSampler();
     createVertexBuffer();
     createIndexBuffer();
@@ -626,7 +625,7 @@ void VulkanApplication::createDescriptorSets()
         };
         VkDescriptorImageInfo imageInfo{
             .sampler = textureSampler,
-            .imageView = textureImageView,
+            .imageView = loadedTextures.at("redbrick").imageView,
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         };
         std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
@@ -651,46 +650,48 @@ void VulkanApplication::createDescriptorSets()
     }
 }
 
-void VulkanApplication::createTextureImage()
+void VulkanApplication::loadTextures()
 {
-    int texWidth, texHeight, texChannels;
-    stbi_uc *pixels = stbi_load("../textures/redbrick.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    VkDeviceSize imageSize = texWidth * texHeight * 4;
+    for (auto &f: std::filesystem::directory_iterator("../textures")) {
+        logger->info("LOADING") << "Loading texture: " << f.path();
+        LOGGER_ENDL;
+        Texture text{};
+        int texWidth, texHeight, texChannels;
+        stbi_uc *pixels = stbi_load(f.path().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        VkDeviceSize imageSize = texWidth * texHeight * 4;
 
-    if (!pixels) throw std::runtime_error("failed to load texture image");
+        if (!pixels) throw std::runtime_error("failed to load texture image");
 
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
-                 stagingBufferMemory);
-    void *data = nullptr;
-    vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
-    std::memcpy(data, pixels, static_cast<size_t>(imageSize));
-    vkUnmapMemory(device, stagingBufferMemory);
-    stbi_image_free(pixels);
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
+                     stagingBufferMemory);
+        void *data = nullptr;
+        vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
+        std::memcpy(data, pixels, static_cast<size_t>(imageSize));
+        vkUnmapMemory(device, stagingBufferMemory);
+        stbi_image_free(pixels);
 
-    createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
-                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                textureImage, textureImageMemory);
-    transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
-                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-    transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vkFreeMemory(device, stagingBufferMemory, nullptr);
+        createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                    text.image, text.imageMemory);
+        transitionImageLayout(text.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
+                              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        copyBufferToImage(stagingBuffer, text.image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+        transitionImageLayout(text.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                              VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        // Image View
+        auto createInfo = vk_init::populateVkImageViewCreateInfo(text.image, VK_FORMAT_R8G8B8A8_SRGB);
+        VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &text.imageView))
+        loadedTextures.insert({f.path().stem(), std::move(text)});
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingBufferMemory, nullptr);
+    }
     mainDeletionQueue.push([&]() {
-        vkDestroyImage(device, textureImage, nullptr);
-        vkFreeMemory(device, textureImageMemory, nullptr);
+        for (auto &[_, p]: loadedTextures) { p.getDeletor(device)(); }
     });
-}
-
-void VulkanApplication::createTextureImageView()
-{
-    auto createInfo = vk_init::populateVkImageViewCreateInfo(textureImage, VK_FORMAT_R8G8B8A8_SRGB);
-    VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &textureImageView));
-    mainDeletionQueue.push([&]() { vkDestroyImageView(device, textureImageView, nullptr); });
 }
 
 void VulkanApplication::createTextureSampler()
