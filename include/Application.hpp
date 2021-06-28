@@ -11,10 +11,18 @@ public:
 
     void run();
 
+public:
+    double lastX = 400;
+    double lastY = 300;
+    double yaw = -90;
+    double pitch = 0;
+
 private:
     void drawFrame();
     void updateUniformBuffer(uint32_t currentImage);
     static void keyboard_callback(GLFWwindow *win, int key, int, int action, int);
+    static void cursor_callback(GLFWwindow *win, double xpos, double ypos);
 
 private:
+    Camera camera;
 };

@@ -24,6 +24,7 @@ add_executable(${PROJECT_NAME} source/main.cpp
                                source/vk_utils.cpp
                                source/PipelineBuilder.cpp
                                source/Logger.cpp
+                               source/Camera.cpp
                                source/Application.cpp
 )
 

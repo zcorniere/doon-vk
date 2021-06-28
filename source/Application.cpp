@@ -8,7 +8,10 @@
 
 Application::Application()
 {
+    window.setUserPointer(this);
+    window.captureCursor(true);
     window.setKeyCallback(Application::keyboard_callback);
+    window.setCursorPosCallback(Application::cursor_callback);
     this->VulkanApplication::init();
 }
 
@@ -16,11 +19,23 @@ Application::~Application() {}
 
 void Application::run()
 {
+    float fElapsedTime = 0;
+
     while (!window.shouldClose()) {
+        auto tp1 = std::chrono::high_resolution_clock::now();
+
         window.pollEvent();
+        if (window.isKeyPressed(GLFW_KEY_W)) camera.processKeyboard(Camera::FORWARD, fElapsedTime);
+        if (window.isKeyPressed(GLFW_KEY_S)) camera.processKeyboard(Camera::BACKWARD, fElapsedTime);
+        if (window.isKeyPressed(GLFW_KEY_D)) camera.processKeyboard(Camera::RIGHT, fElapsedTime);
+        if (window.isKeyPressed(GLFW_KEY_A)) camera.processKeyboard(Camera::LEFT, fElapsedTime);
+        if (window.isKeyPressed(GLFW_KEY_SPACE)) camera.processKeyboard(Camera::UP, fElapsedTime);
+        if (window.isKeyPressed(GLFW_KEY_LEFT_SHIFT)) camera.processKeyboard(Camera::DOWN, fElapsedTime);
         drawFrame();
+        auto tp2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float> elapsedTime(tp2 - tp1);
+        fElapsedTime = elapsedTime.count();
     }
-    vkDeviceWaitIdle(device);
 }
 
 void Application::drawFrame()
@@ -29,9 +44,11 @@ void Application::drawFrame()
     uint32_t imageIndex;
 
     VK_TRY(vkWaitForFences(device, 1, &frame.inFlightFences, VK_TRUE, UINT64_MAX));
+    VK_TRY(vkResetFences(device, 1, &frame.inFlightFences));
 
     VkResult result =
         vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, frame.imageAvailableSemaphore, nullptr, &imageIndex);
+    VK_TRY(vkResetCommandBuffer(commandBuffers[imageIndex], 0));
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         return recreateSwapchain();
@@ -56,7 +73,49 @@ void Application::drawFrame()
         .pSignalSemaphores = signalSemaphores,
     };
 
-    VK_TRY(vkResetFences(device, 1, &frame.inFlightFences));
+    VkCommandBufferBeginInfo beginInfo{
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .pInheritanceInfo = nullptr,
+    };
+
+    std::array<VkClearValue, 2> clearValues{};
+    clearValues.at(0).color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+    clearValues.at(1).depthStencil = {1.0f, 0};
+
+    VkRenderPassBeginInfo renderPassInfo{
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+        .renderPass = renderPass,
+        .framebuffer = swapChainFramebuffers[imageIndex],
+        .renderArea =
+            {
+                .offset = {0, 0},
+                .extent = swapChainExtent,
+            },
+        .clearValueCount = static_cast<uint32_t>(clearValues.size()),
+        .pClearValues = clearValues.data(),
+    };
+    auto gpuCamera = camera.getGPUCameraData();
+    VK_TRY(vkBeginCommandBuffer(commandBuffers[imageIndex], &beginInfo));
+    vkCmdPushConstants(commandBuffers[imageIndex], pipelineLayout,
+                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(gpuCamera), &gpuCamera);
+    vkCmdBeginRenderPass(commandBuffers[imageIndex], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    {
+        vkCmdBindPipeline(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+        VkBuffer vertexBuffers[] = {vertexBuffer};
+        VkDeviceSize offsets[] = {0};
+
+        vkCmdBindVertexBuffers(commandBuffers[imageIndex], 0, 1, vertexBuffers, offsets);
+        vkCmdBindIndexBuffer(commandBuffers[imageIndex], indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdBindDescriptorSets(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
+                                &descriptorSets[imageIndex], 0, nullptr);
+
+        vkCmdDrawIndexed(commandBuffers[imageIndex], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+    }
+    vkCmdEndRenderPass(commandBuffers[imageIndex]);
+    VK_TRY(vkEndCommandBuffer(commandBuffers[imageIndex]));
     VK_TRY(vkQueueSubmit(graphicsQueue, 1, &submitInfo, frame.inFlightFences));
 
     VkSwapchainKHR swapChains[] = {swapChain};
@@ -114,4 +173,15 @@ void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, i
             default: break;
         }
     }
+}
+
+void Application::cursor_callback(GLFWwindow *win, double xpos, double ypos)
+{
+    auto *eng = (Application *)glfwGetWindowUserPointer(win);
+    auto xoffset = xpos - eng->lastX;
+    auto yoffset = eng->lastY - ypos;
+
+    eng->lastX = xpos;
+    eng->lastY = ypos;
+    eng->camera.processMouseMovement(xoffset, yoffset);
 }

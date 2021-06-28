@@ -192,6 +192,15 @@ VkPipelineDepthStencilStateCreateInfo vk_init::populateVkPipelineDepthStencilSta
     };
 }
 
+VkPushConstantRange vk_init::populateVkPushConstantRange(VkShaderStageFlags stage, uint32_t size, uint32_t offset)
+{
+    VkPushConstantRange push_constant{};
+    push_constant.offset = offset;
+    push_constant.size = size;
+    push_constant.stageFlags = stage;
+    return push_constant;
+}
+
 VkPipelineLayoutCreateInfo vk_init::empty::populateVkPipelineLayoutCreateInfo()
 {
     return VkPipelineLayoutCreateInfo{

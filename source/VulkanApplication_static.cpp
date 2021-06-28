@@ -91,7 +91,8 @@ bool VulkanApplication::isDeviceSuitable(const VkPhysicalDevice &gpu, const VkSu
         auto swapChainSupport = SwapChainSupportDetails::querySwapChainSupport(gpu, surface);
         swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
     }
-    return indices.isComplete() && extensionsSupported && swapChainAdequate && deviceFeatures.samplerAnisotropy;
+    return indices.isComplete() && extensionsSupported && swapChainAdequate && deviceFeatures.samplerAnisotropy &&
+           deviceProperties.limits.maxPushConstantsSize >= sizeof(Camera::GPUCameraData);
 }
 
 bool VulkanApplication::checkDeviceExtensionSupport(const VkPhysicalDevice &device)

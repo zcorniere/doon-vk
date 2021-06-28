@@ -30,6 +30,8 @@ VkPipelineLayoutCreateInfo populateVkPipelineLayoutCreateInfo(const std::vector<
                                                               const std::vector<VkPushConstantRange> &pushLayout);
 
 VkPipelineDepthStencilStateCreateInfo populateVkPipelineDepthStencilStateCreateInfo();
+VkPushConstantRange populateVkPushConstantRange(VkShaderStageFlags stage, uint32_t size, uint32_t offset = 0);
+
 namespace empty
 {
     VkPipelineLayoutCreateInfo populateVkPipelineLayoutCreateInfo();

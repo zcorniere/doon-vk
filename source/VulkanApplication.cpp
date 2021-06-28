@@ -14,6 +14,7 @@ VulkanApplication::VulkanApplication(): window("Vulkan", 800, 600)
 
 VulkanApplication::~VulkanApplication()
 {
+    vkDeviceWaitIdle(device);
     swapchainDeletionQueue.flush();
     mainDeletionQueue.flush();
 }
@@ -311,13 +312,17 @@ void VulkanApplication::createGraphicsPipeline()
     auto vertShaderModule = vk_utils::createShaderModule(device, vertShaderCode);
     auto fragShaderModule = vk_utils::createShaderModule(device, fragShaderCode);
 
-    std::vector<VkVertexInputBindingDescription> binding = {Vertex::getBindingDescription()};
-    std::vector<VkVertexInputAttributeDescription> attribute = Vertex::getAttributeDescriptons();
-
+    auto pipelinePushConstant = vk_init::populateVkPushConstantRange(
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(Camera::GPUCameraData));
     auto pipelineLayoutCreateInfo = vk_init::empty::populateVkPipelineLayoutCreateInfo();
+    pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+    pipelineLayoutCreateInfo.pPushConstantRanges = &pipelinePushConstant;
     pipelineLayoutCreateInfo.setLayoutCount = 1;
     pipelineLayoutCreateInfo.pSetLayouts = &descriptorSetLayout;
     VK_TRY(vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout));
+
+    std::vector<VkVertexInputBindingDescription> binding = {Vertex::getBindingDescription()};
+    std::vector<VkVertexInputAttributeDescription> attribute = Vertex::getAttributeDescriptons();
 
     PipelineBuilder builder;
     builder.pipelineLayout = pipelineLayout;
@@ -381,7 +386,7 @@ void VulkanApplication::createCommandPool()
     VkCommandPoolCreateInfo poolInfo{
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .pNext = nullptr,
-        .flags = 0,
+        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
         .queueFamilyIndex = indices.graphicsFamily.value(),
     };
     VK_TRY(vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool));
@@ -404,49 +409,6 @@ void VulkanApplication::createCommandBuffers()
         .commandBufferCount = static_cast<uint32_t>(commandBuffers.size()),
     };
     VK_TRY(vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data()));
-    for (size_t i = 0; i < commandBuffers.size(); ++i) {
-        VkCommandBufferBeginInfo beginInfo{
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            .pNext = nullptr,
-            .flags = 0,
-            .pInheritanceInfo = nullptr,
-        };
-
-        std::array<VkClearValue, 2> clearValues{};
-        clearValues.at(0).color = {{0.0f, 0.0f, 0.0f, 1.0f}};
-        clearValues.at(1).depthStencil = {1.0f, 0};
-
-        VkRenderPassBeginInfo renderPassInfo{
-            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-            .renderPass = renderPass,
-            .framebuffer = swapChainFramebuffers[i],
-            .renderArea =
-                {
-                    .offset = {0, 0},
-                    .extent = swapChainExtent,
-                },
-            .clearValueCount = static_cast<uint32_t>(clearValues.size()),
-            .pClearValues = clearValues.data(),
-        };
-
-        VK_TRY(vkBeginCommandBuffer(commandBuffers[i], &beginInfo));
-        vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-        {
-            vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-
-            VkBuffer vertexBuffers[] = {vertexBuffer};
-            VkDeviceSize offsets[] = {0};
-
-            vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
-            vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-            vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
-                                    &descriptorSets[i], 0, nullptr);
-
-            vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-        }
-        vkCmdEndRenderPass(commandBuffers[i]);
-        VK_TRY(vkEndCommandBuffer(commandBuffers[i]));
-    }
 }
 
 void VulkanApplication::createSyncObjects()

@@ -5,6 +5,7 @@
 #include "Window.hpp"
 #include "types/Frame.hpp"
 #include "types/Material.hpp"
+#include "Camera.hpp"
 #include "types/Texture.hpp"
 #include "types/Vertex.hpp"
 #include "vk_utils.hpp"
