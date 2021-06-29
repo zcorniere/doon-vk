@@ -1,12 +1,12 @@
 #pragma once
 
+#include "Camera.hpp"
 #include "DeletionQueue.hpp"
+#include "MemoryAllocator.hpp"
 #include "QueueFamilyIndices.hpp"
 #include "Window.hpp"
 #include "types/Frame.hpp"
 #include "types/Material.hpp"
-#include "Camera.hpp"
-#include "types/Texture.hpp"
 #include "types/Vertex.hpp"
 #include "vk_utils.hpp"
 
@@ -47,8 +47,6 @@ public:
     ~VulkanApplication();
     void init();
     void recreateSwapchain();
-    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer &buffer,
-                      VkDeviceMemory &bufferMemory);
     bool framebufferResized = false;
 
 private:
@@ -88,13 +86,11 @@ private:
     void createDepthResources();
     void copyBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, VkDeviceSize &size);
     void copyBufferToImage(const VkBuffer &srcBuffer, VkImage &dstBuffer, uint32_t width, uint32_t height);
-    void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-                     VkMemoryPropertyFlags properties, VkImage &image, VkDeviceMemory &imageMemory);
-
     void immediateCommand(std::function<void(VkCommandBuffer &)> &&);
     void transitionImageLayout(VkImage &image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 
 protected:
+    MemoryAllocator allocator;
     Window window;
     VkInstance instance = VK_NULL_HANDLE;
     VkDebugUtilsMessengerEXT debugUtilsMessenger = VK_NULL_HANDLE;
@@ -139,30 +135,23 @@ protected:
     Frame frames[MAX_FRAME_FRAME_IN_FLIGHT];
 
     // Vertex
-    VkBuffer vertexBuffer = VK_NULL_HANDLE;
-    VkDeviceMemory vertexBufferMemory = VK_NULL_HANDLE;
+    AllocatedBuffer vertexBuffer;
 
     // Index
-    VkBuffer indexBuffer = VK_NULL_HANDLE;
-    VkDeviceMemory indexBufferMemory = VK_NULL_HANDLE;
+    AllocatedBuffer indexBuffer;
 
     // Uniform buffers
-    std::vector<VkBuffer> uniformBuffers;
-    std::vector<VkDeviceMemory> uniformBufferMemory;
+    std::vector<AllocatedBuffer> uniformBuffers;
 
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet> descriptorSets;
 
     // Texture
-    std::unordered_map<std::string, Texture> loadedTextures;
+    std::unordered_map<std::string, AllocatedImage> loadedTextures;
     VkSampler textureSampler = VK_NULL_HANDLE;
 
     // Depthbuffer
-    struct {
-        VkImage depthImage = VK_NULL_HANDLE;
-        VkDeviceMemory depthImageMemory = VK_NULL_HANDLE;
-        VkImageView depthImageWiew = VK_NULL_HANDLE;
-    } depthResources = {};
+    AllocatedImage depthResources = {};
 
 private:
     DeleteionQueue mainDeletionQueue;

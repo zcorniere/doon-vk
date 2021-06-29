@@ -32,44 +32,6 @@ void VulkanApplication::copyBufferToImage(const VkBuffer &srcBuffer, VkImage &ds
     });
 }
 
-void VulkanApplication::createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
-                                    VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage &image,
-                                    VkDeviceMemory &imageMemory)
-{
-    VkImageCreateInfo imageInfo{
-        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-        .pNext = nullptr,
-        .flags = 0,
-        .imageType = VK_IMAGE_TYPE_2D,
-        .format = format,
-        .extent =
-            {
-                .width = width,
-                .height = height,
-                .depth = 1,
-            },
-        .mipLevels = 1,
-        .arrayLayers = 1,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
-        .tiling = tiling,
-        .usage = usage,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-    };
-    VK_TRY(vkCreateImage(device, &imageInfo, nullptr, &image));
-
-    VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(device, image, &memRequirements);
-
-    VkMemoryAllocateInfo allocInfo{
-        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .allocationSize = memRequirements.size,
-        .memoryTypeIndex = findMemoryType(physical_device, memRequirements.memoryTypeBits, properties),
-    };
-    VK_TRY(vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory));
-    vkBindImageMemory(device, image, imageMemory, 0);
-}
-
 void VulkanApplication::immediateCommand(std::function<void(VkCommandBuffer &)> &&function)
 {
     VkCommandBufferAllocateInfo cmdAllocInfo{

@@ -6,7 +6,7 @@
 #include <set>
 #include <stb_image.h>
 
-VulkanApplication::VulkanApplication(): window("Vulkan", 800, 600)
+VulkanApplication::VulkanApplication(): allocator(physical_device, device), window("Vulkan", 800, 600)
 {
     window.setUserPointer(this);
     window.setResizeCallback(framebufferResizeCallback);
@@ -44,31 +44,6 @@ void VulkanApplication::init()
     createDescriptorPool();
     createDescriptorSets();
     createCommandBuffers();
-}
-
-void VulkanApplication::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
-                                     VkBuffer &buffer, VkDeviceMemory &bufferMemory)
-{
-    VkBufferCreateInfo bufferInfo{
-        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .pNext = nullptr,
-        .size = size,
-        .usage = usage,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-    };
-    VK_TRY(vkCreateBuffer(device, &bufferInfo, nullptr, &buffer));
-
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
-
-    VkMemoryAllocateInfo allocInfo{
-        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .pNext = nullptr,
-        .allocationSize = memRequirements.size,
-        .memoryTypeIndex = findMemoryType(physical_device, memRequirements.memoryTypeBits, properties),
-    };
-    VK_TRY(vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory));
-    vkBindBufferMemory(device, buffer, bufferMemory, 0);
 }
 
 void VulkanApplication::initInstance()
@@ -361,7 +336,7 @@ void VulkanApplication::createFramebuffers()
 {
     swapChainFramebuffers.resize(swapChainImageViews.size());
     for (size_t i = 0; i < swapChainImageViews.size(); i++) {
-        std::array<VkImageView, 2> attachments = {swapChainImageViews[i], depthResources.depthImageWiew};
+        std::array<VkImageView, 2> attachments = {swapChainImageViews[i], depthResources.imageView};
 
         VkFramebufferCreateInfo framebufferInfo{
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
@@ -449,54 +424,35 @@ void VulkanApplication::createVertexBuffer()
 {
     VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
-                 stagingBufferMemory);
+    AllocatedBuffer stagingBuffer =
+        allocator.alloc(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    allocator.copy(stagingBuffer, vertices);
 
-    void *data = nullptr;
-    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-    std::memcpy(data, vertices.data(), (size_t)bufferSize);
-    vkUnmapMemory(device, stagingBufferMemory);
+    vertexBuffer = allocator.alloc(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
-    copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+    copyBuffer(stagingBuffer.buffer, vertexBuffer.buffer, bufferSize);
 
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vkFreeMemory(device, stagingBufferMemory, nullptr);
-    mainDeletionQueue.push([&]() {
-        vkDestroyBuffer(device, vertexBuffer, nullptr);
-        vkFreeMemory(device, vertexBufferMemory, nullptr);
-    });
+    allocator.free(stagingBuffer);
+    mainDeletionQueue.push([&]() { allocator.free(vertexBuffer); });
 }
 
 void VulkanApplication::createIndexBuffer()
 {
     VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
 
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
-                 stagingBufferMemory);
+    AllocatedBuffer stagingBuffer =
+        allocator.alloc(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    allocator.copy(stagingBuffer, indices);
 
-    void *data = nullptr;
-    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-    std::memcpy(data, indices.data(), (size_t)bufferSize);
-    vkUnmapMemory(device, stagingBufferMemory);
+    indexBuffer = allocator.alloc(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    copyBuffer(stagingBuffer.buffer, indexBuffer.buffer, bufferSize);
 
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
-    copyBuffer(stagingBuffer, indexBuffer, bufferSize);
-
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vkFreeMemory(device, stagingBufferMemory, nullptr);
-    mainDeletionQueue.push([&]() {
-        vkDestroyBuffer(device, indexBuffer, nullptr);
-        vkFreeMemory(device, indexBufferMemory, nullptr);
-    });
+    allocator.free(stagingBuffer);
+    mainDeletionQueue.push([&]() { allocator.free(indexBuffer); });
 }
 
 void VulkanApplication::createDescriptorSetLayout()
@@ -533,17 +489,12 @@ void VulkanApplication::createUniformBuffers()
     VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 
     uniformBuffers.resize(swapChainImages.size());
-    uniformBufferMemory.resize(swapChainImages.size());
     for (size_t i = 0; i < swapChainImages.size(); i++) {
-        createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i],
-                     uniformBufferMemory[i]);
+        uniformBuffers[i] = allocator.alloc(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     }
     swapchainDeletionQueue.push([&]() {
-        for (size_t i = 0; i < swapChainImages.size(); i++) {
-            vkDestroyBuffer(device, uniformBuffers[i], nullptr);
-            vkFreeMemory(device, uniformBufferMemory[i], nullptr);
-        }
+        for (auto &i: uniformBuffers) { allocator.free(i); }
     });
 }
 
@@ -581,7 +532,7 @@ void VulkanApplication::createDescriptorSets()
     VK_TRY(vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()));
     for (size_t i = 0; i < swapChainImages.size(); ++i) {
         VkDescriptorBufferInfo bufferInfo{
-            .buffer = uniformBuffers[i],
+            .buffer = uniformBuffers[i].buffer,
             .offset = 0,
             .range = sizeof(UniformBufferObject),
         };
@@ -617,42 +568,37 @@ void VulkanApplication::loadTextures()
     for (auto &f: std::filesystem::directory_iterator("../textures")) {
         logger->info("LOADING") << "Loading texture: " << f.path();
         LOGGER_ENDL;
-        Texture text{};
         int texWidth, texHeight, texChannels;
         stbi_uc *pixels = stbi_load(f.path().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         VkDeviceSize imageSize = texWidth * texHeight * 4;
 
         if (!pixels) throw std::runtime_error("failed to load texture image");
 
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
-        createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
-                     stagingBufferMemory);
-        void *data = nullptr;
-        vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
-        std::memcpy(data, pixels, static_cast<size_t>(imageSize));
-        vkUnmapMemory(device, stagingBufferMemory);
+        AllocatedBuffer stagingBuffer =
+            allocator.alloc(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        allocator.copy(stagingBuffer, pixels, imageSize);
         stbi_image_free(pixels);
 
-        createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
-                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                    text.image, text.imageMemory);
-        transitionImageLayout(text.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
+        VkExtent3D textureSize{
+            .width = static_cast<uint32_t>(texWidth),
+            .height = static_cast<uint32_t>(texHeight),
+            .depth = 1,
+        };
+        AllocatedImage image = allocator.alloc(textureSize, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+                                               VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        transitionImageLayout(image.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-        copyBufferToImage(stagingBuffer, text.image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-        transitionImageLayout(text.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        copyBufferToImage(stagingBuffer.buffer, image.image, static_cast<uint32_t>(texWidth),
+                          static_cast<uint32_t>(texHeight));
+        transitionImageLayout(image.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-        // Image View
-        auto createInfo = vk_init::populateVkImageViewCreateInfo(text.image, VK_FORMAT_R8G8B8A8_SRGB);
-        VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &text.imageView))
-        loadedTextures.insert({f.path().stem(), std::move(text)});
-        vkDestroyBuffer(device, stagingBuffer, nullptr);
-        vkFreeMemory(device, stagingBufferMemory, nullptr);
+        loadedTextures.insert({f.path().stem(), std::move(image)});
+        allocator.free(stagingBuffer);
     }
     mainDeletionQueue.push([&]() {
-        for (auto &[_, p]: loadedTextures) { p.getDeletor(device)(); }
+        for (auto &[_, p]: loadedTextures) { allocator.free(p); }
     });
 }
 
@@ -689,20 +635,18 @@ void VulkanApplication::createDepthResources()
     VkFormat depthFormat = vk_utils::findSupportedFormat(
         physical_device, {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
         VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-    createImage(swapChainExtent.width, swapChainExtent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL,
-                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                depthResources.depthImage, depthResources.depthImageMemory);
-    auto createInfo = vk_init::populateVkImageViewCreateInfo(depthResources.depthImage, depthFormat);
-    createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-    VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &depthResources.depthImageWiew));
 
-    transitionImageLayout(depthResources.depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED,
+    depthResources =
+        allocator.alloc({swapChainExtent.width, swapChainExtent.height, 1}, depthFormat, VK_IMAGE_TILING_OPTIMAL,
+                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, false);
+
+    auto createInfo = vk_init::populateVkImageViewCreateInfo(depthResources.image, depthFormat);
+    createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &depthResources.imageView));
+
+    transitionImageLayout(depthResources.image, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-    swapchainDeletionQueue.push([&]() {
-        vkDestroyImageView(device, depthResources.depthImageWiew, nullptr);
-        vkFreeMemory(device, depthResources.depthImageMemory, nullptr);
-        vkDestroyImage(device, depthResources.depthImage, nullptr);
-    });
+    swapchainDeletionQueue.push([&]() { allocator.free(depthResources); });
 }
 
 void VulkanApplication::recreateSwapchain()
@@ -729,6 +673,7 @@ void VulkanApplication::recreateSwapchain()
     createDescriptorPool();
     createDescriptorSets();
     createCommandBuffers();
-    logger->info("Swapchain") << "Swapchain recreation complete...";
+    logger->info("Swapchain") << "Swapchain recreation complete... { height=" << swapChainExtent.height
+                              << ", width =" << swapChainExtent.width << "}";
     LOGGER_ENDL;
 }

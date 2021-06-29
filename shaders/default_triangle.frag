@@ -9,7 +9,7 @@ layout (push_constant) uniform constants {
 	mat4 viewproj;
 } cameraData;
 
-layout(binding = 1) uniform sampler2D texSampler;
+layout(set = 0, binding = 1) uniform sampler2D texSampler;
 
 layout(location = 0) out vec4 outColor;
 

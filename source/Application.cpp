@@ -3,13 +3,14 @@
 #include <cstring>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 #include <chrono>
 
 Application::Application()
 {
     window.setUserPointer(this);
-    window.captureCursor(true);
+    window.captureCursor(false);
     window.setKeyCallback(Application::keyboard_callback);
     window.setCursorPosCallback(Application::cursor_callback);
     this->VulkanApplication::init();
@@ -104,11 +105,11 @@ void Application::drawFrame()
     {
         vkCmdBindPipeline(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-        VkBuffer vertexBuffers[] = {vertexBuffer};
+        VkBuffer vertexBuffers[] = {vertexBuffer.buffer};
         VkDeviceSize offsets[] = {0};
 
         vkCmdBindVertexBuffers(commandBuffers[imageIndex], 0, 1, vertexBuffers, offsets);
-        vkCmdBindIndexBuffer(commandBuffers[imageIndex], indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdBindIndexBuffer(commandBuffers[imageIndex], indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
         vkCmdBindDescriptorSets(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
                                 &descriptorSets[imageIndex], 0, nullptr);
 
@@ -154,11 +155,7 @@ void Application::updateUniformBuffer(uint32_t currentImage)
             glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f),
     };
     ubo.proj[1][1] *= -1;
-
-    void *data = nullptr;
-    vkMapMemory(device, uniformBufferMemory[currentImage], 0, sizeof(ubo), 0, &data);
-    std::memcpy(data, &ubo, sizeof(ubo));
-    vkUnmapMemory(device, uniformBufferMemory[currentImage]);
+    allocator.copy(uniformBuffers[currentImage], &ubo, sizeof(ubo));
 }
 
 void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, int)
