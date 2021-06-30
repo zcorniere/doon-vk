@@ -7,6 +7,7 @@
 #include "Window.hpp"
 #include "types/Frame.hpp"
 #include "types/Material.hpp"
+#include "types/Mesh.hpp"
 #include "types/Vertex.hpp"
 #include "vk_utils.hpp"
 
@@ -20,17 +21,20 @@ const std::vector<const char *> validationLayers = {
 const std::vector<const char *> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 };
-const std::vector<Vertex> vertices = {{{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-                                      {{0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-                                      {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-                                      {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
 
-                                      {{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-                                      {{0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-                                      {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-                                      {{-0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}};
+const CPUMesh baseMesh{
+    .verticies = {{{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+                  {{0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+                  {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+                  {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
 
-const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4};
+                  {{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+                  {{0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+                  {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+                  {{-0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}},
+    .indices = {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4},
+};
+
 constexpr uint8_t MAX_FRAME_FRAME_IN_FLIGHT = 2;
 
 class VulkanApplication
@@ -47,6 +51,7 @@ public:
     ~VulkanApplication();
     void init();
     void recreateSwapchain();
+    GPUMesh uploadMesh(const CPUMesh &mesh);
     bool framebufferResized = false;
 
 private:
@@ -75,8 +80,7 @@ private:
     void createCommandPool();
     void createCommandBuffers();
     void createSyncObjects();
-    void createVertexBuffer();
-    void createIndexBuffer();
+    void createMesh();
     void createDescriptorSetLayout();
     void createUniformBuffers();
     void createDescriptorPool();
@@ -134,11 +138,7 @@ protected:
     uint8_t currentFrame = 0;
     Frame frames[MAX_FRAME_FRAME_IN_FLIGHT];
 
-    // Vertex
-    AllocatedBuffer vertexBuffer;
-
-    // Index
-    AllocatedBuffer indexBuffer;
+    GPUMesh meshBuffer;
 
     // Uniform buffers
     std::vector<AllocatedBuffer> uniformBuffers;

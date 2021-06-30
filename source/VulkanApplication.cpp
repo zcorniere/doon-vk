@@ -38,8 +38,7 @@ void VulkanApplication::init()
 
     loadTextures();
     createTextureSampler();
-    createVertexBuffer();
-    createIndexBuffer();
+    createMesh();
     createUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
@@ -420,39 +419,13 @@ void VulkanApplication::createSyncObjects()
     });
 }
 
-void VulkanApplication::createVertexBuffer()
+void VulkanApplication::createMesh()
 {
-    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
-
-    AllocatedBuffer stagingBuffer =
-        allocator.alloc(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    allocator.copy(stagingBuffer, vertices);
-
-    vertexBuffer = allocator.alloc(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    copyBuffer(stagingBuffer.buffer, vertexBuffer.buffer, bufferSize);
-
-    allocator.free(stagingBuffer);
-    mainDeletionQueue.push([&]() { allocator.free(vertexBuffer); });
-}
-
-void VulkanApplication::createIndexBuffer()
-{
-    VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
-
-    AllocatedBuffer stagingBuffer =
-        allocator.alloc(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    allocator.copy(stagingBuffer, indices);
-
-    indexBuffer = allocator.alloc(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    copyBuffer(stagingBuffer.buffer, indexBuffer.buffer, bufferSize);
-
-    allocator.free(stagingBuffer);
-    mainDeletionQueue.push([&]() { allocator.free(indexBuffer); });
+    meshBuffer = uploadMesh(baseMesh);
+    mainDeletionQueue.push([&]() {
+        allocator.free(meshBuffer.vertices);
+        allocator.free(meshBuffer.indices);
+    });
 }
 
 void VulkanApplication::createDescriptorSetLayout()
@@ -676,4 +649,32 @@ void VulkanApplication::recreateSwapchain()
     logger->info("Swapchain") << "Swapchain recreation complete... { height=" << swapChainExtent.height
                               << ", width =" << swapChainExtent.width << "}";
     LOGGER_ENDL;
+}
+
+GPUMesh VulkanApplication::uploadMesh(const CPUMesh &mesh)
+{
+    VkDeviceSize verticesSize = sizeof(mesh.verticies[0]) * mesh.verticies.size();
+    VkDeviceSize indicesSize = sizeof(mesh.indices[0]) * mesh.indices.size();
+
+    GPUMesh gmesh{
+        .vertices = allocator.alloc(verticesSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+        .indices = allocator.alloc(indicesSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+    };
+    GPUMesh stagingBuffer{
+        .vertices = allocator.alloc(verticesSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT),
+        .indices = allocator.alloc(indicesSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT),
+    };
+    allocator.copy(stagingBuffer.vertices, mesh.verticies);
+    copyBuffer(stagingBuffer.vertices.buffer, gmesh.vertices.buffer, verticesSize);
+
+    allocator.copy(stagingBuffer.indices, mesh.indices);
+    copyBuffer(stagingBuffer.indices.buffer, gmesh.indices.buffer, indicesSize);
+
+    allocator.free(stagingBuffer.vertices);
+    allocator.free(stagingBuffer.indices);
+    return gmesh;
 }
