@@ -383,6 +383,8 @@ void VulkanApplication::createCommandBuffers()
         .commandBufferCount = static_cast<uint32_t>(commandBuffers.size()),
     };
     VK_TRY(vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data()));
+    swapchainDeletionQueue.push(
+        [&]() { vkFreeCommandBuffers(device, commandPool, commandBuffers.size(), commandBuffers.data()); });
 }
 
 void VulkanApplication::createSyncObjects()

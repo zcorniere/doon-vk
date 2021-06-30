@@ -45,18 +45,16 @@ void Application::drawFrame()
     uint32_t imageIndex;
 
     VK_TRY(vkWaitForFences(device, 1, &frame.inFlightFences, VK_TRUE, UINT64_MAX));
-    VK_TRY(vkResetFences(device, 1, &frame.inFlightFences));
-
     VkResult result =
         vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, frame.imageAvailableSemaphore, nullptr, &imageIndex);
-    VK_TRY(vkResetCommandBuffer(commandBuffers[imageIndex], 0));
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         return recreateSwapchain();
     } else if (result != VK_SUCCESS) {
         throw VulkanException(result);
     }
-
+    VK_TRY(vkResetFences(device, 1, &frame.inFlightFences));
+    VK_TRY(vkResetCommandBuffer(commandBuffers[imageIndex], 0));
     VkSemaphore waitSemaphores[] = {frame.imageAvailableSemaphore};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSemaphore signalSemaphores[] = {frame.renderFinishedSemaphore};
