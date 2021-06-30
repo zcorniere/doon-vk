@@ -3,8 +3,11 @@
 #include "PipelineBuilder.hpp"
 #include "SwapChainSupportDetails.hpp"
 #include "vk_init.hpp"
+
 #include <set>
 #include <stb_image.h>
+#include <tiny_obj_loader.h>
+#include <unordered_map>
 
 VulkanApplication::VulkanApplication(): allocator(physical_device, device), window("Vulkan", 800, 600)
 {
@@ -37,8 +40,8 @@ void VulkanApplication::init()
     createFramebuffers();
 
     loadTextures();
+    loadModel();
     createTextureSampler();
-    createMesh();
     createUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
@@ -421,9 +424,52 @@ void VulkanApplication::createSyncObjects()
     });
 }
 
-void VulkanApplication::createMesh()
+void VulkanApplication::loadModel()
 {
-    meshBuffer = uploadMesh(baseMesh);
+    CPUMesh mesh{};
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+    std::string warn, err;
+
+    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, "../models/viking_room.obj", nullptr)) {
+        if (!warn.empty()) {
+            logger->warn("LOADING_OBJ") << warn;
+            LOGGER_ENDL;
+        }
+        if (!err.empty()) {
+            logger->err("LOADING_OBJ") << err;
+            LOGGER_ENDL;
+            throw std::runtime_error("Error while loading obj file");
+        }
+    }
+
+    std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+
+    for (const auto &shape: shapes) {
+        for (const auto &index: shape.mesh.indices) {
+            Vertex vertex{
+                .pos =
+                    {
+                        attrib.vertices[3 * index.vertex_index + 0],
+                        attrib.vertices[3 * index.vertex_index + 1],
+                        attrib.vertices[3 * index.vertex_index + 2],
+                    },
+                .color = {1.0f, 1.0f, 1.0f},
+                .texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
+                             1.0f - attrib.texcoords[2 * index.texcoord_index + 1]},
+            };
+
+            if (!uniqueVertices.contains(vertex)) {
+                uniqueVertices[vertex] = mesh.verticies.size();
+                mesh.verticies.push_back(vertex);
+            }
+
+            mesh.indices.push_back(uniqueVertices.at(vertex));
+        }
+    }
+
+    meshBuffer = uploadMesh(mesh);
     mainDeletionQueue.push([&]() {
         allocator.free(meshBuffer.vertices);
         allocator.free(meshBuffer.indices);
@@ -513,7 +559,7 @@ void VulkanApplication::createDescriptorSets()
         };
         VkDescriptorImageInfo imageInfo{
             .sampler = textureSampler,
-            .imageView = loadedTextures.at("redbrick").imageView,
+            .imageView = loadedTextures.at("viking_room").imageView,
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         };
         std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
@@ -659,6 +705,7 @@ GPUMesh VulkanApplication::uploadMesh(const CPUMesh &mesh)
     VkDeviceSize indicesSize = sizeof(mesh.indices[0]) * mesh.indices.size();
 
     GPUMesh gmesh{
+        .baseMesh = mesh,
         .vertices = allocator.alloc(verticesSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
         .indices = allocator.alloc(indicesSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,

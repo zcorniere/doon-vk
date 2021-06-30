@@ -6,10 +6,11 @@
 
 struct CPUMesh {
     std::vector<Vertex> verticies;
-    std::vector<uint16_t> indices;
+    std::vector<uint32_t> indices;
 };
 
 struct GPUMesh {
+    CPUMesh baseMesh;
     AllocatedBuffer vertices;
     AllocatedBuffer indices;
 };
