@@ -125,7 +125,7 @@ protected:
     uint8_t currentFrame = 0;
     Frame frames[MAX_FRAME_FRAME_IN_FLIGHT];
 
-    GPUMesh meshBuffer;
+    std::unordered_map<std::string, GPUMesh> loadedMeshes;
 
     // Uniform buffers
     std::vector<AllocatedBuffer> uniformBuffers;

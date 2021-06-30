@@ -7,7 +7,6 @@
 #include <set>
 #include <stb_image.h>
 #include <tiny_obj_loader.h>
-#include <unordered_map>
 
 VulkanApplication::VulkanApplication(): allocator(physical_device, device), window("Vulkan", 800, 600)
 {
@@ -426,53 +425,60 @@ void VulkanApplication::createSyncObjects()
 
 void VulkanApplication::loadModel()
 {
-    CPUMesh mesh{};
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-    std::string warn, err;
+    for (auto &file: std::filesystem::directory_iterator("../models")) {
+        if (file.path().extension() != ".obj") continue;
+        logger->info("LOADING") << "Loading object: " << file.path();
+        LOGGER_ENDL;
 
-    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, "../models/viking_room.obj", nullptr)) {
-        if (!warn.empty()) {
-            logger->warn("LOADING_OBJ") << warn;
-            LOGGER_ENDL;
-        }
-        if (!err.empty()) {
-            logger->err("LOADING_OBJ") << err;
-            LOGGER_ENDL;
-            throw std::runtime_error("Error while loading obj file");
-        }
-    }
+        CPUMesh mesh{};
+        tinyobj::attrib_t attrib;
+        std::vector<tinyobj::shape_t> shapes;
+        std::vector<tinyobj::material_t> materials;
+        std::string warn, err;
 
-    std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-
-    for (const auto &shape: shapes) {
-        for (const auto &index: shape.mesh.indices) {
-            Vertex vertex{
-                .pos =
-                    {
-                        attrib.vertices[3 * index.vertex_index + 0],
-                        attrib.vertices[3 * index.vertex_index + 1],
-                        attrib.vertices[3 * index.vertex_index + 2],
-                    },
-                .color = {1.0f, 1.0f, 1.0f},
-                .texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
-                             1.0f - attrib.texcoords[2 * index.texcoord_index + 1]},
-            };
-
-            if (!uniqueVertices.contains(vertex)) {
-                uniqueVertices[vertex] = mesh.verticies.size();
-                mesh.verticies.push_back(vertex);
+        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, file.path().c_str(), nullptr)) {
+            if (!warn.empty()) {
+                logger->warn("LOADING_OBJ") << warn;
+                LOGGER_ENDL;
             }
-
-            mesh.indices.push_back(uniqueVertices.at(vertex));
+            if (!err.empty()) {
+                logger->err("LOADING_OBJ") << err;
+                LOGGER_ENDL;
+                throw std::runtime_error("Error while loading obj file");
+            }
         }
-    }
 
-    meshBuffer = uploadMesh(mesh);
-    mainDeletionQueue.push([&]() {
-        allocator.free(meshBuffer.vertices);
-        allocator.free(meshBuffer.indices);
+        std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+
+        for (const auto &shape: shapes) {
+            for (const auto &index: shape.mesh.indices) {
+                Vertex vertex{
+                    .pos =
+                        {
+                            attrib.vertices[3 * index.vertex_index + 0],
+                            attrib.vertices[3 * index.vertex_index + 1],
+                            attrib.vertices[3 * index.vertex_index + 2],
+                        },
+                    .color = {1.0f, 1.0f, 1.0f},
+                    .texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
+                                 1.0f - attrib.texcoords[2 * index.texcoord_index + 1]},
+                };
+
+                if (!uniqueVertices.contains(vertex)) {
+                    uniqueVertices[vertex] = mesh.verticies.size();
+                    mesh.verticies.push_back(vertex);
+                }
+
+                mesh.indices.push_back(uniqueVertices.at(vertex));
+            }
+        }
+        loadedMeshes[file.path().stem()] = uploadMesh(mesh);
+    }
+    mainDeletionQueue.push([=]() {
+        for (auto &[_, i]: loadedMeshes) {
+            allocator.free(i.vertices);
+            allocator.free(i.indices);
+        }
     });
 }
 
