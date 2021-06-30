@@ -4,3 +4,6 @@
 [submodule "lib/glm"]
 	path = lib/glm
 	url = git@github.com:g-truc/glm.git
+[submodule "lib/tinyobjloader"]
+	path = lib/tinyobjloader
+	url = git@github.com:tinyobjloader/tinyobjloader.git
