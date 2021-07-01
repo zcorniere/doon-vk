@@ -25,6 +25,7 @@ glm::mat4 Camera::getViewMatrix() const { return glm::lookAt(position, position 
 Camera::GPUCameraData Camera::getGPUCameraData() const
 {
     auto projection = glm::perspective(glm::radians(70.f), 1700.f / 900.f, 0.1f, 200.0f);
+    projection[1][1] *= -1;
     auto view = this->getViewMatrix();
     GPUCameraData data{
         .position = glm::vec4(position, 1.0f),

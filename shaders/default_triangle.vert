@@ -2,9 +2,9 @@
 #extension GL_ARB_separate_shader_objects : enable
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
-    mat4 model;
-    mat4 view;
-    mat4 proj;
+    mat4 translation;
+    mat4 rotation;
+    mat4 scale;
 } ubo;
 
 layout (push_constant) uniform constants {
@@ -21,7 +21,7 @@ layout(location = 0) out vec3 fragColor;
 layout(location = 1) out vec2 fragTextCoords;
 
 void main() {
-    gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
+    gl_Position = cameraData.viewproj * (ubo.translation * ubo.rotation  * ubo.scale) * vec4(inPosition, 1.0);
     fragColor = inColor;
     fragTextCoords = inTextCoords;
 }

@@ -10,7 +10,7 @@ struct Frame {
 };
 
 struct UniformBufferObject {
-    glm::mat4 model;
-    glm::mat4 view;
-    glm::mat4 proj;
+    glm::mat4 translation;
+    glm::mat4 rotation;
+    glm::mat4 scale;
 };
