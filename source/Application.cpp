@@ -104,15 +104,16 @@ void Application::drawFrame()
     {
         vkCmdBindPipeline(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-        VkBuffer vertexBuffers[] = {mesh.vertices.buffer};
+        VkBuffer vertexBuffers[] = {mesh.meshBuffer.buffer};
         VkDeviceSize offsets[] = {0};
 
         vkCmdBindVertexBuffers(commandBuffers[imageIndex], 0, 1, vertexBuffers, offsets);
-        vkCmdBindIndexBuffer(commandBuffers[imageIndex], mesh.indices.buffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdBindIndexBuffer(commandBuffers[imageIndex], mesh.meshBuffer.buffer, mesh.indicesOffset,
+                             VK_INDEX_TYPE_UINT32);
         vkCmdBindDescriptorSets(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
                                 &descriptorSets[imageIndex], 0, nullptr);
 
-        vkCmdDrawIndexed(commandBuffers[imageIndex], static_cast<uint32_t>(mesh.baseMesh.indices.size()), 1, 0, 0, 0);
+        vkCmdDrawIndexed(commandBuffers[imageIndex], mesh.indicesSize, 1, 0, 0, 0);
     }
     vkCmdEndRenderPass(commandBuffers[imageIndex]);
     VK_TRY(vkEndCommandBuffer(commandBuffers[imageIndex]));

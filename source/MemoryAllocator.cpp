@@ -76,13 +76,13 @@ AllocatedImage MemoryAllocator::alloc(VkExtent3D extent, VkFormat format, VkImag
 
 void MemoryAllocator::free(AllocatedBuffer &buffer)
 {
-    vkFreeMemory(device, buffer.memory, nullptr);
     vkDestroyBuffer(device, buffer.buffer, nullptr);
+    vkFreeMemory(device, buffer.memory, nullptr);
 }
 
 void MemoryAllocator::free(AllocatedImage &image)
 {
     vkDestroyImageView(device, image.imageView, nullptr);
-    vkFreeMemory(device, image.memory, nullptr);
     vkDestroyImage(device, image.image, nullptr);
+    vkFreeMemory(device, image.memory, nullptr);
 }

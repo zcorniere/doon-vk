@@ -476,8 +476,8 @@ void VulkanApplication::loadModel()
     }
     mainDeletionQueue.push([=]() {
         for (auto &[_, i]: loadedMeshes) {
-            allocator.free(i.vertices);
-            allocator.free(i.indices);
+            allocator.free(i.uniformBuffers);
+            allocator.free(i.meshBuffer);
         }
     });
 }
@@ -709,27 +709,34 @@ GPUMesh VulkanApplication::uploadMesh(const CPUMesh &mesh)
 {
     VkDeviceSize verticesSize = sizeof(mesh.verticies[0]) * mesh.verticies.size();
     VkDeviceSize indicesSize = sizeof(mesh.indices[0]) * mesh.indices.size();
+    VkDeviceSize uniformBuffersSize = sizeof(UniformBufferObject);
+    VkDeviceSize totalSize = verticesSize + indicesSize;
 
     GPUMesh gmesh{
-        .baseMesh = mesh,
-        .vertices = allocator.alloc(verticesSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
-        .indices = allocator.alloc(indicesSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+        .verticiesOffset = 0,
+        .verticiesSize = mesh.verticies.size(),
+        .indicesOffset = verticesSize,
+        .indicesSize = mesh.indices.size(),
+        .uniformBuffers = allocator.alloc(uniformBuffersSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT),
+        .meshBuffer = allocator.alloc(totalSize,
+                                      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                                          VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
     };
-    GPUMesh stagingBuffer{
-        .vertices = allocator.alloc(verticesSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT),
-        .indices = allocator.alloc(indicesSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT),
-    };
-    allocator.copy(stagingBuffer.vertices, mesh.verticies);
-    copyBuffer(stagingBuffer.vertices.buffer, gmesh.vertices.buffer, verticesSize);
+    AllocatedBuffer stagingBuffer =
+        allocator.alloc(totalSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-    allocator.copy(stagingBuffer.indices, mesh.indices);
-    copyBuffer(stagingBuffer.indices.buffer, gmesh.indices.buffer, indicesSize);
+    void *mapped = nullptr;
+    vkMapMemory(device, stagingBuffer.memory, 0, verticesSize, 0, &mapped);
+    std::memcpy(mapped, mesh.verticies.data(), verticesSize);
+    vkUnmapMemory(device, stagingBuffer.memory);
+    vkMapMemory(device, stagingBuffer.memory, verticesSize, indicesSize, 0, &mapped);
+    std::memcpy(mapped, mesh.indices.data(), indicesSize);
+    vkUnmapMemory(device, stagingBuffer.memory);
 
-    allocator.free(stagingBuffer.vertices);
-    allocator.free(stagingBuffer.indices);
+    copyBuffer(stagingBuffer.buffer, gmesh.meshBuffer.buffer, totalSize);
+    allocator.free(stagingBuffer);
     return gmesh;
 }
