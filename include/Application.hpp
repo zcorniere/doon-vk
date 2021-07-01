@@ -16,6 +16,7 @@ public:
     double lastY = 300;
     double yaw = -90;
     double pitch = 0;
+    bool bInteractWithUi = false;
 
 private:
     void drawFrame();

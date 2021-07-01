@@ -157,11 +157,22 @@ void Application::updateUniformBuffer(uint32_t currentImage)
 
 void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, int)
 {
+    auto *eng = (Application *)glfwGetWindowUserPointer(win);
+
     switch (action) {
         case GLFW_REPEAT:
         case GLFW_PRESS: {
             switch (key) {
                 case GLFW_KEY_ESCAPE: glfwSetWindowShouldClose(win, true); break;
+                case GLFW_KEY_LEFT_ALT:
+                    if (eng->bInteractWithUi) {
+                        eng->window.captureCursor(true);
+                        eng->bInteractWithUi = false;
+                    } else {
+                        eng->window.captureCursor(false);
+                        eng->bInteractWithUi = true;
+                    }
+                    break;
                 default: break;
             }
             default: break;
@@ -172,6 +183,8 @@ void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, i
 void Application::cursor_callback(GLFWwindow *win, double xpos, double ypos)
 {
     auto *eng = (Application *)glfwGetWindowUserPointer(win);
+    if (eng->bInteractWithUi) return;
+
     auto xoffset = xpos - eng->lastX;
     auto yoffset = eng->lastY - ypos;
 
