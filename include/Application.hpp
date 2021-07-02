@@ -29,6 +29,7 @@ private:
     struct {
         char sWindowTitle[128] = "Vulkan";
         bool bShowFpsInTitle = false;
+        bool bWireFrameMode = false;
     } uiRessources = {};
     Camera camera;
 };

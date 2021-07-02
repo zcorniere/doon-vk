@@ -142,6 +142,7 @@ void VulkanApplication::createLogicalDevice()
     }
 
     VkPhysicalDeviceFeatures deviceFeature{
+        .fillModeNonSolid = VK_TRUE,
         .samplerAnisotropy = VK_TRUE,
     };
 
@@ -352,7 +353,7 @@ void VulkanApplication::createGraphicsPipeline()
     builder.scissor.offset = {0, 0};
     builder.scissor.extent = swapChainExtent;
     builder.colorBlendAttachment = vk_init::populateVkPipelineColorBlendAttachmentState();
-    builder.rasterizer = vk_init::populateVkPipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
+    builder.rasterizer = vk_init::populateVkPipelineRasterizationStateCreateInfo(creationParameters.polygonMode);
     builder.rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
     builder.rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     graphicsPipeline = builder.build(device, renderPass);
