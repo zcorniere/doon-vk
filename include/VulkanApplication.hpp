@@ -95,6 +95,7 @@ private:
     void loadTextures();
     void createTextureSampler();
     void createDepthResources();
+    void createImgui();
     void copyBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, VkDeviceSize &size);
     void copyBufferToImage(const VkBuffer &srcBuffer, VkImage &dstBuffer, uint32_t width, uint32_t height);
     void immediateCommand(std::function<void(VkCommandBuffer &)> &&);

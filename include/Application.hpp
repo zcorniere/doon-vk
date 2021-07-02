@@ -20,6 +20,7 @@ public:
 
 private:
     void drawFrame();
+    void drawImgui();
     void updateUniformBuffer(uint32_t currentImage);
     static void keyboard_callback(GLFWwindow *win, int key, int, int action, int);
     static void cursor_callback(GLFWwindow *win, double xpos, double ypos);

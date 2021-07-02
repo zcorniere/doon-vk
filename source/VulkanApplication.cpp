@@ -4,6 +4,8 @@
 #include "SwapChainSupportDetails.hpp"
 #include "vk_init.hpp"
 
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_vulkan.h>
 #include <set>
 #include <stb_image.h>
 #include <tiny_obj_loader.h>
@@ -47,6 +49,7 @@ void VulkanApplication::init()
     createDescriptorPool();
     createDescriptorSets();
     createCommandBuffers();
+    createImgui();
 }
 
 void VulkanApplication::initInstance()
@@ -808,6 +811,59 @@ void VulkanApplication::createColorResources()
     swapchainDeletionQueue.push([&]() {
         vkDestroyImageView(device, colorImage.imageView, nullptr);
         vmaDestroyImage(allocator, colorImage.image, colorImage.memory);
+    });
+}
+
+void VulkanApplication::createImgui()
+{
+    VkDescriptorPoolSize pool_sizes[] = {{VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
+                                         {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
+                                         {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
+                                         {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
+                                         {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
+                                         {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
+                                         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
+                                         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
+                                         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
+                                         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
+                                         {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}};
+
+    VkDescriptorPoolCreateInfo pool_info = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+        .maxSets = 1000,
+        .poolSizeCount = std::size(pool_sizes),
+        .pPoolSizes = pool_sizes,
+    };
+
+    VkDescriptorPool imguiPool;
+    VK_TRY(vkCreateDescriptorPool(device, &pool_info, nullptr, &imguiPool));
+
+    ImGui::CreateContext();
+
+    ImGui_ImplGlfw_InitForVulkan(window.getWindow(), true);
+
+    ImGui_ImplVulkan_InitInfo init_info{
+        .Instance = instance,
+        .PhysicalDevice = physical_device,
+        .Device = device,
+        .Queue = graphicsQueue,
+        .DescriptorPool = imguiPool,
+        .MinImageCount = 3,
+        .ImageCount = 3,
+        .MSAASamples = msaaSample,
+    };
+
+    ImGui_ImplVulkan_Init(&init_info, renderPass);
+
+    immediateCommand([&](VkCommandBuffer cmd) { ImGui_ImplVulkan_CreateFontsTexture(cmd); });
+
+    ImGui_ImplVulkan_DestroyFontUploadObjects();
+
+    mainDeletionQueue.push([=]() {
+        vkDestroyDescriptorPool(device, imguiPool, nullptr);
+        ImGui_ImplVulkan_Shutdown();
     });
 }
 

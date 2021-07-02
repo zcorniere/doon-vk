@@ -1,9 +1,12 @@
 #include "Application.hpp"
 #include "Logger.hpp"
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_vulkan.h>
 #include <cstring>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <imgui.h>
 
 #include <chrono>
 
@@ -33,6 +36,7 @@ void Application::run()
         if (window.isKeyPressed(GLFW_KEY_A)) camera.processKeyboard(Camera::LEFT, fElapsedTime);
         if (window.isKeyPressed(GLFW_KEY_SPACE)) camera.processKeyboard(Camera::UP, fElapsedTime);
         if (window.isKeyPressed(GLFW_KEY_LEFT_SHIFT)) camera.processKeyboard(Camera::DOWN, fElapsedTime);
+        drawImgui();
         drawFrame();
         auto tp2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<float> elapsedTime(tp2 - tp1);
@@ -115,6 +119,8 @@ void Application::drawFrame()
 
         vkCmdDrawIndexed(commandBuffers[imageIndex], mesh.indicesSize, 1, 0, 0, 0);
     }
+    ImGui::Render();
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffers[imageIndex]);
     vkCmdEndRenderPass(commandBuffers[imageIndex]);
     VK_TRY(vkEndCommandBuffer(commandBuffers[imageIndex]));
     VK_TRY(vkQueueSubmit(graphicsQueue, 1, &submitInfo, frame.inFlightFences));
@@ -139,6 +145,18 @@ void Application::drawFrame()
         VK_TRY(result);
     }
     currentFrame = (currentFrame + 1) % MAX_FRAME_FRAME_IN_FLIGHT;
+}
+
+void Application::drawImgui()
+{
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    ImGui::Begin("Hello world");
+    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
+                ImGui::GetIO().Framerate);
+    ImGui::End();
 }
 
 void Application::updateUniformBuffer(uint32_t currentImage)
