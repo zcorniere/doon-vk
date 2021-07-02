@@ -21,7 +21,6 @@ add_executable(${PROJECT_NAME} source/main.cpp
                                source/VulkanApplication_helpers.cpp
                                source/VulkanApplication_static.cpp
                                source/vk_init.cpp
-                               source/MemoryAllocator.cpp
                                source/vk_utils.cpp
                                source/PipelineBuilder.cpp
                                source/Logger.cpp

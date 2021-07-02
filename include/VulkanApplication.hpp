@@ -2,17 +2,19 @@
 
 #include "Camera.hpp"
 #include "DeletionQueue.hpp"
-#include "MemoryAllocator.hpp"
 #include "QueueFamilyIndices.hpp"
 #include "Window.hpp"
+#include "types/AllocatedBuffer.hpp"
 #include "types/Frame.hpp"
 #include "types/Material.hpp"
 #include "types/Mesh.hpp"
 #include "types/Vertex.hpp"
 #include "vk_utils.hpp"
 
+#include <cstring>
 #include <stdexcept>
 #include <vector>
+#include <vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
 
 const std::vector<const char *> validationLayers = {
@@ -39,6 +41,25 @@ public:
     void init();
     void recreateSwapchain();
     GPUMesh uploadMesh(const CPUMesh &mesh);
+
+    template <typename T>
+    void copyBuffer(AllocatedBuffer &buffer, std::vector<T> data)
+    {
+        VkDeviceSize size = sizeof(data[0]) * data.size();
+        void *mapped = nullptr;
+        vmaMapMemory(allocator, buffer.memory, &mapped);
+        std::memcpy(mapped, data.data(), size);
+        vmaUnmapMemory(allocator, buffer.memory);
+    }
+
+    template <typename T>
+    void copyBuffer(AllocatedBuffer &buffer, T *data, size_t size)
+    {
+        void *mapped = nullptr;
+        vmaMapMemory(allocator, buffer.memory, &mapped);
+        std::memcpy(mapped, data, size);
+        vmaUnmapMemory(allocator, buffer.memory);
+    }
     bool framebufferResized = false;
 
 private:
@@ -81,12 +102,12 @@ private:
     void transitionImageLayout(VkImage &image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 
 protected:
-    MemoryAllocator allocator;
     Window window;
     VkInstance instance = VK_NULL_HANDLE;
     VkDebugUtilsMessengerEXT debugUtilsMessenger = VK_NULL_HANDLE;
     VkPhysicalDevice physical_device = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
+    VmaAllocator allocator;
 
     //  Queues
     VkQueue graphicsQueue = VK_NULL_HANDLE;

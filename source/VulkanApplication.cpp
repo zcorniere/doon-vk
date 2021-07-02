@@ -8,7 +8,7 @@
 #include <stb_image.h>
 #include <tiny_obj_loader.h>
 
-VulkanApplication::VulkanApplication(): allocator(physical_device, device), window("Vulkan", 800, 600)
+VulkanApplication::VulkanApplication(): window("Vulkan", 800, 600)
 {
     window.setUserPointer(this);
     window.setResizeCallback(framebufferResizeCallback);
@@ -28,6 +28,7 @@ void VulkanApplication::init()
     initSurface();
     pickPhysicalDevice();
     createLogicalDevice();
+    createAllocator();
     createSwapchain();
     createSyncObjects();
     createImageViews();
@@ -57,7 +58,7 @@ void VulkanApplication::initInstance()
 
     VkApplicationInfo applicationInfo{
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        .apiVersion = VK_API_VERSION_1_1,
+        .apiVersion = VK_API_VERSION_1_2,
     };
     VkInstanceCreateInfo createInfo{
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
@@ -155,6 +156,17 @@ void VulkanApplication::createLogicalDevice()
     vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
 }
 
+void VulkanApplication::createAllocator()
+{
+    VmaAllocatorCreateInfo allocatorInfo{
+        .physicalDevice = physical_device,
+        .device = device,
+        .instance = instance,
+        .vulkanApiVersion = VK_API_VERSION_1_2,
+    };
+    VK_TRY(vmaCreateAllocator(&allocatorInfo, &allocator));
+    mainDeletionQueue.push([&]() { vmaDestroyAllocator(allocator); });
+}
 void VulkanApplication::createSwapchain()
 {
     auto indices = QueueFamilyIndices::findQueueFamilies(physical_device, surface);
@@ -476,8 +488,8 @@ void VulkanApplication::loadModel()
     }
     mainDeletionQueue.push([=]() {
         for (auto &[_, i]: loadedMeshes) {
-            allocator.free(i.uniformBuffers);
-            allocator.free(i.meshBuffer);
+            vmaDestroyBuffer(allocator, i.uniformBuffers.buffer, i.uniformBuffers.memory);
+            vmaDestroyBuffer(allocator, i.meshBuffer.buffer, i.meshBuffer.memory);
         }
     });
 }
@@ -512,16 +524,25 @@ void VulkanApplication::createDescriptorSetLayout()
 
 void VulkanApplication::createUniformBuffers()
 {
-
     VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+    VmaAllocationCreateInfo allocInfo{
+        .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
+    };
+    VkBufferCreateInfo bufferInfo{
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .pNext = nullptr,
+        .size = bufferSize,
+        .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    };
 
     uniformBuffers.resize(swapChainImages.size());
     for (size_t i = 0; i < swapChainImages.size(); i++) {
-        uniformBuffers[i] = allocator.alloc(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        VK_TRY(vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &uniformBuffers[i].buffer, &uniformBuffers[i].memory,
+                               nullptr));
     }
     swapchainDeletionQueue.push([&]() {
-        for (auto &i: uniformBuffers) { allocator.free(i); }
+        for (auto &i: uniformBuffers) { vmaDestroyBuffer(allocator, i.buffer, i.memory); }
     });
 }
 
@@ -601,20 +622,50 @@ void VulkanApplication::loadTextures()
 
         if (!pixels) throw std::runtime_error("failed to load texture image");
 
-        AllocatedBuffer stagingBuffer =
-            allocator.alloc(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        allocator.copy(stagingBuffer, pixels, imageSize);
+        VkBufferCreateInfo stagingBufferInfo{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .pNext = nullptr,
+            .size = imageSize,
+            .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        };
+        VmaAllocationCreateInfo stagingAllocInfo{
+            .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
+        };
+        AllocatedBuffer stagingBuffer{};
+        VK_TRY(vmaCreateBuffer(allocator, &stagingBufferInfo, &stagingAllocInfo, &stagingBuffer.buffer,
+                               &stagingBuffer.memory, nullptr));
+        copyBuffer(stagingBuffer, pixels, imageSize);
         stbi_image_free(pixels);
 
-        VkExtent3D textureSize{
-            .width = static_cast<uint32_t>(texWidth),
-            .height = static_cast<uint32_t>(texHeight),
-            .depth = 1,
+        AllocatedImage image{};
+        VkImageCreateInfo imageInfo{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .imageType = VK_IMAGE_TYPE_2D,
+            .format = VK_FORMAT_R8G8B8A8_SRGB,
+            .extent =
+                {
+                    .width = static_cast<uint32_t>(texWidth),
+                    .height = static_cast<uint32_t>(texHeight),
+                    .depth = 1,
+                },
+            .mipLevels = 1,
+            .arrayLayers = 1,
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .tiling = VK_IMAGE_TILING_OPTIMAL,
+            .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         };
-        AllocatedImage image = allocator.alloc(textureSize, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
-                                               VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        VmaAllocationCreateInfo allocInfo{
+            .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+        };
+        VK_TRY(vmaCreateImage(allocator, &imageInfo, &allocInfo, &image.image, &image.memory, nullptr));
+        auto createInfo = vk_init::populateVkImageViewCreateInfo(image.image, VK_FORMAT_R8G8B8A8_SRGB);
+        VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &image.imageView));
+
         transitionImageLayout(image.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         copyBufferToImage(stagingBuffer.buffer, image.image, static_cast<uint32_t>(texWidth),
@@ -622,10 +673,13 @@ void VulkanApplication::loadTextures()
         transitionImageLayout(image.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         loadedTextures.insert({f.path().stem(), std::move(image)});
-        allocator.free(stagingBuffer);
+        vmaDestroyBuffer(allocator, stagingBuffer.buffer, stagingBuffer.memory);
     }
     mainDeletionQueue.push([&]() {
-        for (auto &[_, p]: loadedTextures) { allocator.free(p); }
+        for (auto &[_, p]: loadedTextures) {
+            vkDestroyImageView(device, p.imageView, nullptr);
+            vmaDestroyImage(allocator, p.image, p.memory);
+        }
     });
 }
 
@@ -663,9 +717,30 @@ void VulkanApplication::createDepthResources()
         physical_device, {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
         VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
-    depthResources =
-        allocator.alloc({swapChainExtent.width, swapChainExtent.height, 1}, depthFormat, VK_IMAGE_TILING_OPTIMAL,
-                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, false);
+    VkImageCreateInfo imageInfo{
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .imageType = VK_IMAGE_TYPE_2D,
+        .format = depthFormat,
+        .extent =
+            {
+                .width = swapChainExtent.width,
+                .height = swapChainExtent.height,
+                .depth = 1,
+            },
+        .mipLevels = 1,
+        .arrayLayers = 1,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .tiling = VK_IMAGE_TILING_OPTIMAL,
+        .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    };
+    VmaAllocationCreateInfo allocInfo{
+        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+    };
+    VK_TRY(vmaCreateImage(allocator, &imageInfo, &allocInfo, &depthResources.image, &depthResources.memory, nullptr));
 
     auto createInfo = vk_init::populateVkImageViewCreateInfo(depthResources.image, depthFormat);
     createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -673,7 +748,10 @@ void VulkanApplication::createDepthResources()
 
     transitionImageLayout(depthResources.image, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-    swapchainDeletionQueue.push([&]() { allocator.free(depthResources); });
+    swapchainDeletionQueue.push([&]() {
+        vkDestroyImageView(device, depthResources.imageView, nullptr);
+        vmaDestroyImage(allocator, depthResources.image, depthResources.memory);
+    });
 }
 
 void VulkanApplication::recreateSwapchain()
@@ -712,31 +790,59 @@ GPUMesh VulkanApplication::uploadMesh(const CPUMesh &mesh)
     VkDeviceSize uniformBuffersSize = sizeof(UniformBufferObject);
     VkDeviceSize totalSize = verticesSize + indicesSize;
 
+    VkBufferCreateInfo stagingBufferInfo{
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .pNext = nullptr,
+        .size = totalSize,
+        .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    };
+    VmaAllocationCreateInfo stagingAllocInfo{
+        .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
+    };
+    VkBufferCreateInfo uniformBufferInfo{
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .pNext = nullptr,
+        .size = uniformBuffersSize,
+        .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    };
+    VmaAllocationCreateInfo uniformAllocInfo{
+        .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
+    };
+    VkBufferCreateInfo meshBufferInfo{
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .pNext = nullptr,
+        .size = totalSize,
+        .usage =
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    };
+    VmaAllocationCreateInfo meshAllocInfo{
+        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+    };
+
     GPUMesh gmesh{
         .verticiesOffset = 0,
         .verticiesSize = mesh.verticies.size(),
         .indicesOffset = verticesSize,
         .indicesSize = mesh.indices.size(),
-        .uniformBuffers = allocator.alloc(uniformBuffersSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT),
-        .meshBuffer = allocator.alloc(totalSize,
-                                      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-                                          VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
     };
-    AllocatedBuffer stagingBuffer =
-        allocator.alloc(totalSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    AllocatedBuffer stagingBuffer{};
+    VK_TRY(vmaCreateBuffer(allocator, &stagingBufferInfo, &stagingAllocInfo, &stagingBuffer.buffer,
+                           &stagingBuffer.memory, nullptr));
+    VK_TRY(vmaCreateBuffer(allocator, &uniformBufferInfo, &uniformAllocInfo, &gmesh.uniformBuffers.buffer,
+                           &gmesh.uniformBuffers.memory, nullptr));
+    VK_TRY(vmaCreateBuffer(allocator, &meshBufferInfo, &meshAllocInfo, &gmesh.meshBuffer.buffer,
+                           &gmesh.meshBuffer.memory, nullptr));
 
     void *mapped = nullptr;
-    vkMapMemory(device, stagingBuffer.memory, 0, verticesSize, 0, &mapped);
+    vmaMapMemory(allocator, stagingBuffer.memory, &mapped);
     std::memcpy(mapped, mesh.verticies.data(), verticesSize);
-    vkUnmapMemory(device, stagingBuffer.memory);
-    vkMapMemory(device, stagingBuffer.memory, verticesSize, indicesSize, 0, &mapped);
-    std::memcpy(mapped, mesh.indices.data(), indicesSize);
-    vkUnmapMemory(device, stagingBuffer.memory);
+    std::memcpy((unsigned char *)mapped + verticesSize, mesh.indices.data(), indicesSize);
+    vmaUnmapMemory(allocator, stagingBuffer.memory);
 
     copyBuffer(stagingBuffer.buffer, gmesh.meshBuffer.buffer, totalSize);
-    allocator.free(stagingBuffer);
+    vmaDestroyBuffer(allocator, stagingBuffer.buffer, stagingBuffer.memory);
     return gmesh;
 }

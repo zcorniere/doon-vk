@@ -14,6 +14,7 @@ VkFormat findSupportedFormat(VkPhysicalDevice &gpu, const std::vector<VkFormat> 
                              VkFormatFeatureFlags features);
 bool hasStencilComponent(VkFormat format);
 uint32_t findMemoryType(VkPhysicalDevice &physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
 namespace tools
 {
     std::string errorString(VkResult errorCode);

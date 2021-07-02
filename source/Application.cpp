@@ -153,7 +153,10 @@ void Application::updateUniformBuffer(uint32_t currentImage)
         .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
         .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f, 2.0f, 2.0f)),
     };
-    allocator.copy(uniformBuffers[currentImage], &ubo, sizeof(ubo));
+    void *mapped = nullptr;
+    vmaMapMemory(allocator, uniformBuffers[currentImage].memory, &mapped);
+    std::memcpy(mapped, &ubo, sizeof(ubo));
+    vmaUnmapMemory(allocator, uniformBuffers[currentImage].memory);
 }
 
 void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, int)

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "MemoryAllocator.hpp"
+#include "types/AllocatedBuffer.hpp"
 #include "types/Vertex.hpp"
 #include <vector>
 
