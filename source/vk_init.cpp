@@ -31,14 +31,14 @@ VkDeviceQueueCreateInfo vk_init::populateDeviceQueueCreateInfo(const uint32_t co
     };
 }
 
-VkImageViewCreateInfo vk_init::populateVkImageViewCreateInfo(VkImage &img, VkFormat forma)
+VkImageViewCreateInfo vk_init::populateVkImageViewCreateInfo(VkImage &img, VkFormat format, uint32_t mipLevel)
 {
     return VkImageViewCreateInfo{
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
         .pNext = nullptr,
         .image = img,
         .viewType = VK_IMAGE_VIEW_TYPE_2D,
-        .format = forma,
+        .format = format,
         .components =
             {
                 .r = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -50,7 +50,7 @@ VkImageViewCreateInfo vk_init::populateVkImageViewCreateInfo(VkImage &img, VkFor
             {
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                 .baseMipLevel = 0,
-                .levelCount = 1,
+                .levelCount = mipLevel,
                 .baseArrayLayer = 0,
                 .layerCount = 1,
             },

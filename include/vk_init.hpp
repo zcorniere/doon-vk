@@ -11,7 +11,7 @@ VkDebugUtilsMessengerCreateInfoEXT populateDebugUtilsMessengerCreateInfoEXT(
     VKAPI_ATTR VkBool32 VKAPI_CALL (*)(VkDebugUtilsMessageSeverityFlagBitsEXT, VkDebugUtilsMessageTypeFlagsEXT,
                                        const VkDebugUtilsMessengerCallbackDataEXT *, void *));
 VkDeviceQueueCreateInfo populateDeviceQueueCreateInfo(const uint32_t, const uint32_t, const float &);
-VkImageViewCreateInfo populateVkImageViewCreateInfo(VkImage &image, VkFormat format);
+VkImageViewCreateInfo populateVkImageViewCreateInfo(VkImage &image, VkFormat format, uint32_t mipLevel = 1);
 VkShaderModuleCreateInfo populateVkShaderModuleCreateInfo(const std::vector<std::byte> &code);
 
 VkPipelineShaderStageCreateInfo populateVkPipelineShaderStageCreateInfo(VkShaderStageFlagBits stage,

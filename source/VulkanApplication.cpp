@@ -239,7 +239,7 @@ void VulkanApplication::createRenderPass()
         .format = swapChainImageFormat,
         .samples = msaaSample,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
         .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
@@ -656,6 +656,7 @@ void VulkanApplication::loadTextures()
         copyBuffer(stagingBuffer, pixels, imageSize);
         stbi_image_free(pixels);
 
+        mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
         AllocatedImage image{};
         VkImageCreateInfo imageInfo{
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -669,11 +670,11 @@ void VulkanApplication::loadTextures()
                     .height = static_cast<uint32_t>(texHeight),
                     .depth = 1,
                 },
-            .mipLevels = 1,
+            .mipLevels = mipLevels,
             .arrayLayers = 1,
             .samples = VK_SAMPLE_COUNT_1_BIT,
             .tiling = VK_IMAGE_TILING_OPTIMAL,
-            .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         };
@@ -681,17 +682,18 @@ void VulkanApplication::loadTextures()
             .usage = VMA_MEMORY_USAGE_GPU_ONLY,
         };
         VK_TRY(vmaCreateImage(allocator, &imageInfo, &allocInfo, &image.image, &image.memory, nullptr));
-        auto createInfo = vk_init::populateVkImageViewCreateInfo(image.image, VK_FORMAT_R8G8B8A8_SRGB);
+        auto createInfo = vk_init::populateVkImageViewCreateInfo(image.image, VK_FORMAT_R8G8B8A8_SRGB, mipLevels);
         VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &image.imageView));
 
         transitionImageLayout(image.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
-                              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+                              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels);
         copyBufferToImage(stagingBuffer.buffer, image.image, static_cast<uint32_t>(texWidth),
                           static_cast<uint32_t>(texHeight));
-        transitionImageLayout(image.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                              VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        loadedTextures.insert({f.path().stem(), std::move(image)});
+        // transitionImageLayout(image.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        //                      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         vmaDestroyBuffer(allocator, stagingBuffer.buffer, stagingBuffer.memory);
+        generateMipmaps(image.image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
+        loadedTextures.insert({f.path().stem(), std::move(image)});
     }
     mainDeletionQueue.push([&]() {
         for (auto &[_, p]: loadedTextures) {
@@ -721,7 +723,7 @@ void VulkanApplication::createTextureSampler()
         .compareEnable = VK_FALSE,
         .compareOp = VK_COMPARE_OP_ALWAYS,
         .minLod = 0.0f,
-        .maxLod = 0.0f,
+        .maxLod = static_cast<float>(mipLevels),
         .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
         .unnormalizedCoordinates = VK_FALSE,
     };
@@ -837,68 +839,4 @@ void VulkanApplication::recreateSwapchain()
     logger->info("Swapchain") << "Swapchain recreation complete... { height=" << swapChainExtent.height
                               << ", width =" << swapChainExtent.width << "}";
     LOGGER_ENDL;
-}
-
-GPUMesh VulkanApplication::uploadMesh(const CPUMesh &mesh)
-{
-    VkDeviceSize verticesSize = sizeof(mesh.verticies[0]) * mesh.verticies.size();
-    VkDeviceSize indicesSize = sizeof(mesh.indices[0]) * mesh.indices.size();
-    VkDeviceSize uniformBuffersSize = sizeof(UniformBufferObject);
-    VkDeviceSize totalSize = verticesSize + indicesSize;
-
-    VkBufferCreateInfo stagingBufferInfo{
-        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .pNext = nullptr,
-        .size = totalSize,
-        .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-    };
-    VmaAllocationCreateInfo stagingAllocInfo{
-        .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
-    };
-    VkBufferCreateInfo uniformBufferInfo{
-        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .pNext = nullptr,
-        .size = uniformBuffersSize,
-        .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-    };
-    VmaAllocationCreateInfo uniformAllocInfo{
-        .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
-    };
-    VkBufferCreateInfo meshBufferInfo{
-        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .pNext = nullptr,
-        .size = totalSize,
-        .usage =
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-    };
-    VmaAllocationCreateInfo meshAllocInfo{
-        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-    };
-
-    GPUMesh gmesh{
-        .verticiesOffset = 0,
-        .verticiesSize = mesh.verticies.size(),
-        .indicesOffset = verticesSize,
-        .indicesSize = mesh.indices.size(),
-    };
-    AllocatedBuffer stagingBuffer{};
-    VK_TRY(vmaCreateBuffer(allocator, &stagingBufferInfo, &stagingAllocInfo, &stagingBuffer.buffer,
-                           &stagingBuffer.memory, nullptr));
-    VK_TRY(vmaCreateBuffer(allocator, &uniformBufferInfo, &uniformAllocInfo, &gmesh.uniformBuffers.buffer,
-                           &gmesh.uniformBuffers.memory, nullptr));
-    VK_TRY(vmaCreateBuffer(allocator, &meshBufferInfo, &meshAllocInfo, &gmesh.meshBuffer.buffer,
-                           &gmesh.meshBuffer.memory, nullptr));
-
-    void *mapped = nullptr;
-    vmaMapMemory(allocator, stagingBuffer.memory, &mapped);
-    std::memcpy(mapped, mesh.verticies.data(), verticesSize);
-    std::memcpy((unsigned char *)mapped + verticesSize, mesh.indices.data(), indicesSize);
-    vmaUnmapMemory(allocator, stagingBuffer.memory);
-
-    copyBuffer(stagingBuffer.buffer, gmesh.meshBuffer.buffer, totalSize);
-    vmaDestroyBuffer(allocator, stagingBuffer.buffer, stagingBuffer.memory);
-    return gmesh;
 }

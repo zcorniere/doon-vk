@@ -98,8 +98,11 @@ private:
     void copyBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, VkDeviceSize &size);
     void copyBufferToImage(const VkBuffer &srcBuffer, VkImage &dstBuffer, uint32_t width, uint32_t height);
     void immediateCommand(std::function<void(VkCommandBuffer &)> &&);
-    void transitionImageLayout(VkImage &image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+    void transitionImageLayout(VkImage &image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
+                               uint32_t mipLevels = 1);
     void createColorResources();
+    void generateMipmaps(VkImage &image, VkFormat imageFormat, uint32_t texWidth, uint32_t texHeight,
+                         uint32_t mipLevel);
 
 protected:
     Window window;
@@ -157,6 +160,7 @@ protected:
 
     // Texture
     std::unordered_map<std::string, AllocatedImage> loadedTextures;
+    uint32_t mipLevels = 0;
     VkSampler textureSampler = VK_NULL_HANDLE;
 
     // Depthbuffer
