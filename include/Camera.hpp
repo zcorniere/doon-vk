@@ -3,6 +3,10 @@
 #include <glm/glm.hpp>
 #include <ostream>
 
+#ifndef MAX_PROJECTION_LIMIT
+#define MAX_PROJECTION_LIMIT 100.0f
+#endif
+
 class Camera
 {
 public:

@@ -34,6 +34,7 @@ add_shader(${PROJECT_NAME} default_triangle.frag)
 target_compile_definitions(${PROJECT_NAME} PRIVATE
   -DGLM_FORCE_RADIANS
   -DGLM_FORCE_DEPTH_ZERO_TO_ONE
+  -DMAX_PROJECTION_LIMIT=100.0f
 )
 
 if(MSVC)
