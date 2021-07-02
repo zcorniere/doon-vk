@@ -16,6 +16,7 @@ Application::Application()
     window.captureCursor(true);
     window.setKeyCallback(Application::keyboard_callback);
     window.setCursorPosCallback(Application::cursor_callback);
+    window.setTitle(uiRessources.sWindowTitle);
     this->VulkanApplication::init();
 }
 
@@ -27,15 +28,18 @@ void Application::run()
 
     for (unsigned i = 0; i < swapChainImages.size(); i++) { updateUniformBuffer(i); }
     while (!window.shouldClose()) {
+        window.setTitle(uiRessources.sWindowTitle);
         auto tp1 = std::chrono::high_resolution_clock::now();
 
         window.pollEvent();
-        if (window.isKeyPressed(GLFW_KEY_W)) camera.processKeyboard(Camera::FORWARD, fElapsedTime);
-        if (window.isKeyPressed(GLFW_KEY_S)) camera.processKeyboard(Camera::BACKWARD, fElapsedTime);
-        if (window.isKeyPressed(GLFW_KEY_D)) camera.processKeyboard(Camera::RIGHT, fElapsedTime);
-        if (window.isKeyPressed(GLFW_KEY_A)) camera.processKeyboard(Camera::LEFT, fElapsedTime);
-        if (window.isKeyPressed(GLFW_KEY_SPACE)) camera.processKeyboard(Camera::UP, fElapsedTime);
-        if (window.isKeyPressed(GLFW_KEY_LEFT_SHIFT)) camera.processKeyboard(Camera::DOWN, fElapsedTime);
+        if (!bInteractWithUi) {
+            if (window.isKeyPressed(GLFW_KEY_W)) camera.processKeyboard(Camera::FORWARD, fElapsedTime);
+            if (window.isKeyPressed(GLFW_KEY_S)) camera.processKeyboard(Camera::BACKWARD, fElapsedTime);
+            if (window.isKeyPressed(GLFW_KEY_D)) camera.processKeyboard(Camera::RIGHT, fElapsedTime);
+            if (window.isKeyPressed(GLFW_KEY_A)) camera.processKeyboard(Camera::LEFT, fElapsedTime);
+            if (window.isKeyPressed(GLFW_KEY_SPACE)) camera.processKeyboard(Camera::UP, fElapsedTime);
+            if (window.isKeyPressed(GLFW_KEY_LEFT_SHIFT)) camera.processKeyboard(Camera::DOWN, fElapsedTime);
+        }
         drawImgui();
         drawFrame();
         auto tp2 = std::chrono::high_resolution_clock::now();
@@ -154,6 +158,15 @@ void Application::drawImgui()
     ImGui::NewFrame();
 
     ImGui::Begin("Hello world");
+    if (ImGui::CollapsingHeader("Menu")) {
+        if (!uiRessources.bShowFpsInTitle) {
+            ImGui::InputText("Window Title", uiRessources.sWindowTitle, IM_ARRAYSIZE(uiRessources.sWindowTitle));
+        } else {
+            snprintf(uiRessources.sWindowTitle, 128, "%f", ImGui::GetIO().Framerate);
+        }
+        ImGui::Checkbox("Show fps in the tile", &uiRessources.bShowFpsInTitle);
+    }
+
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
                 ImGui::GetIO().Framerate);
     ImGui::End();
@@ -169,7 +182,7 @@ void Application::updateUniformBuffer(uint32_t currentImage)
     UniformBufferObject ubo{
         .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(0.0f, -0.6f, 0.0f)),
         .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
-        .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f, 2.0f, 2.0f)),
+        .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f)),
     };
     void *mapped = nullptr;
     vmaMapMemory(allocator, uniformBuffers[currentImage].memory, &mapped);

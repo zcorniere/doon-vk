@@ -26,5 +26,9 @@ private:
     static void cursor_callback(GLFWwindow *win, double xpos, double ypos);
 
 private:
+    struct {
+        char sWindowTitle[128] = "Vulkan";
+        bool bShowFpsInTitle = false;
+    } uiRessources = {};
     Camera camera;
 };
