@@ -112,14 +112,19 @@ void VulkanApplication::framebufferResizeCallback(GLFWwindow *window, int, int)
     app->framebufferResized = true;
 }
 
-uint32_t VulkanApplication::findMemoryType(VkPhysicalDevice &physicalDevice, uint32_t typeFilter,
-                                           VkMemoryPropertyFlags properties)
+VkSampleCountFlagBits VulkanApplication::getMexUsableSampleCount(VkPhysicalDevice &physical_device)
 {
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+    VkPhysicalDeviceProperties physicalDeviceProperties;
+    vkGetPhysicalDeviceProperties(physical_device, &physicalDeviceProperties);
 
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; ++i) {
-        if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & properties)) { return i; }
-    }
-    throw VulkanException("failed to find suitable memory type !");
+    VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts &
+                                physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+    if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
+    if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
+    if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
+    if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
+    if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
+    if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
+
+    return VK_SAMPLE_COUNT_1_BIT;
 }

@@ -70,8 +70,7 @@ private:
     static bool isDeviceSuitable(const VkPhysicalDevice &gpu, const VkSurfaceKHR &surface);
     static bool checkDeviceExtensionSupport(const VkPhysicalDevice &device);
     static void framebufferResizeCallback(GLFWwindow *, int, int);
-    static uint32_t findMemoryType(VkPhysicalDevice &physical_device, uint32_t typeFilter,
-                                   VkMemoryPropertyFlags properties);
+    static VkSampleCountFlagBits getMexUsableSampleCount(VkPhysicalDevice &physical_device);
 
 private:
     void initInstance();
@@ -100,12 +99,14 @@ private:
     void copyBufferToImage(const VkBuffer &srcBuffer, VkImage &dstBuffer, uint32_t width, uint32_t height);
     void immediateCommand(std::function<void(VkCommandBuffer &)> &&);
     void transitionImageLayout(VkImage &image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+    void createColorResources();
 
 protected:
     Window window;
     VkInstance instance = VK_NULL_HANDLE;
     VkDebugUtilsMessengerEXT debugUtilsMessenger = VK_NULL_HANDLE;
     VkPhysicalDevice physical_device = VK_NULL_HANDLE;
+    VkSampleCountFlagBits msaaSample = VK_SAMPLE_COUNT_1_BIT;
     VkDevice device = VK_NULL_HANDLE;
     VmaAllocator allocator;
 
@@ -160,6 +161,8 @@ protected:
 
     // Depthbuffer
     AllocatedImage depthResources = {};
+
+    AllocatedImage colorImage = {};
 
 private:
     DeleteionQueue mainDeletionQueue;

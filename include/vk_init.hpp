@@ -23,7 +23,8 @@ populateVkPipelineVertexInputStateCreateInfo(const std::vector<VkVertexInputBind
 VkPipelineInputAssemblyStateCreateInfo populateVkPipelineInputAssemblyCreateInfo(VkPrimitiveTopology,
                                                                                  VkBool32 = VK_FALSE);
 VkPipelineRasterizationStateCreateInfo populateVkPipelineRasterizationStateCreateInfo(VkPolygonMode);
-VkPipelineMultisampleStateCreateInfo populateVkPipelineMultisampleStateCreateInfo();
+VkPipelineMultisampleStateCreateInfo
+populateVkPipelineMultisampleStateCreateInfo(VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT);
 VkPipelineColorBlendAttachmentState populateVkPipelineColorBlendAttachmentState();
 
 VkPipelineLayoutCreateInfo populateVkPipelineLayoutCreateInfo(const std::vector<VkDescriptorSetLayout> &setLayout,

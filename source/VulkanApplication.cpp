@@ -36,6 +36,7 @@ void VulkanApplication::init()
     createDescriptorSetLayout();
     createGraphicsPipeline();
     createCommandPool();
+    createColorResources();
     createDepthResources();
     createFramebuffers();
 
@@ -105,6 +106,7 @@ void VulkanApplication::pickPhysicalDevice()
     for (const auto &device: devices) {
         if (isDeviceSuitable(device, surface)) {
             physical_device = device;
+            msaaSample = getMexUsableSampleCount(physical_device);
             break;
         }
     }
@@ -235,25 +237,35 @@ void VulkanApplication::createRenderPass()
 {
     VkAttachmentDescription colorAttachment{
         .format = swapChainImageFormat,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .samples = msaaSample,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
         .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
         .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
     };
     VkAttachmentDescription depthAttachment{
         .format = vk_utils::findSupportedFormat(
             physical_device, {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
             VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT),
-        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .samples = msaaSample,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
         .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    };
+    VkAttachmentDescription colorAttachmentResolve{
+        .format = swapChainImageFormat,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
     };
     VkAttachmentReference colorAttachmentRef{
         .attachment = 0,
@@ -263,10 +275,15 @@ void VulkanApplication::createRenderPass()
         .attachment = 1,
         .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
     };
+    VkAttachmentReference colorAttachmentResolveRef{
+        .attachment = 2,
+        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    };
     VkSubpassDescription subpass{
         .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
         .colorAttachmentCount = 1,
         .pColorAttachments = &colorAttachmentRef,
+        .pResolveAttachments = &colorAttachmentResolveRef,
         .pDepthStencilAttachment = &depthAttachmentRef,
     };
     VkSubpassDependency dependency{
@@ -278,7 +295,7 @@ void VulkanApplication::createRenderPass()
         .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
     };
 
-    std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
+    std::array<VkAttachmentDescription, 3> attachments = {colorAttachment, depthAttachment, colorAttachmentResolve};
     VkRenderPassCreateInfo renderPassInfo{
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
         .pNext = nullptr,
@@ -321,7 +338,7 @@ void VulkanApplication::createGraphicsPipeline()
     builder.vertexInputInfo = vk_init::populateVkPipelineVertexInputStateCreateInfo(binding, attribute);
     builder.inputAssembly =
         vk_init::populateVkPipelineInputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE);
-    builder.multisampling = vk_init::populateVkPipelineMultisampleStateCreateInfo();
+    builder.multisampling = vk_init::populateVkPipelineMultisampleStateCreateInfo(msaaSample);
     builder.depthStencil = vk_init::populateVkPipelineDepthStencilStateCreateInfo();
     builder.viewport.x = 0.0f;
     builder.viewport.y = 0.0f;
@@ -349,7 +366,8 @@ void VulkanApplication::createFramebuffers()
 {
     swapChainFramebuffers.resize(swapChainImageViews.size());
     for (size_t i = 0; i < swapChainImageViews.size(); i++) {
-        std::array<VkImageView, 2> attachments = {swapChainImageViews[i], depthResources.imageView};
+        std::array<VkImageView, 3> attachments = {colorImage.imageView, depthResources.imageView,
+                                                  swapChainImageViews[i]};
 
         VkFramebufferCreateInfo framebufferInfo{
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
@@ -731,7 +749,7 @@ void VulkanApplication::createDepthResources()
             },
         .mipLevels = 1,
         .arrayLayers = 1,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .samples = msaaSample,
         .tiling = VK_IMAGE_TILING_OPTIMAL,
         .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
@@ -754,6 +772,43 @@ void VulkanApplication::createDepthResources()
     });
 }
 
+void VulkanApplication::createColorResources()
+{
+    VkImageCreateInfo imageInfo{
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .imageType = VK_IMAGE_TYPE_2D,
+        .format = swapChainImageFormat,
+        .extent =
+            {
+                .width = swapChainExtent.width,
+                .height = swapChainExtent.height,
+                .depth = 1,
+            },
+        .mipLevels = 1,
+        .arrayLayers = 1,
+        .samples = msaaSample,
+        .tiling = VK_IMAGE_TILING_OPTIMAL,
+        .usage = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    };
+    VmaAllocationCreateInfo allocInfo{
+        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+    };
+    VK_TRY(vmaCreateImage(allocator, &imageInfo, &allocInfo, &colorImage.image, &colorImage.memory, nullptr));
+
+    auto createInfo = vk_init::populateVkImageViewCreateInfo(colorImage.image, swapChainImageFormat);
+    createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &colorImage.imageView));
+
+    swapchainDeletionQueue.push([&]() {
+        vkDestroyImageView(device, colorImage.imageView, nullptr);
+        vmaDestroyImage(allocator, colorImage.image, colorImage.memory);
+    });
+}
+
 void VulkanApplication::recreateSwapchain()
 {
     int width = 0, height = 0;
@@ -772,6 +827,7 @@ void VulkanApplication::recreateSwapchain()
     createImageViews();
     createRenderPass();
     createGraphicsPipeline();
+    createColorResources();
     createDepthResources();
     createFramebuffers();
     createUniformBuffers();

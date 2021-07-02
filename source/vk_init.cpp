@@ -128,14 +128,15 @@ VkPipelineRasterizationStateCreateInfo vk_init::populateVkPipelineRasterizationS
     };
 }
 
-VkPipelineMultisampleStateCreateInfo vk_init::populateVkPipelineMultisampleStateCreateInfo()
+VkPipelineMultisampleStateCreateInfo
+vk_init::populateVkPipelineMultisampleStateCreateInfo(VkSampleCountFlagBits msaaSamples)
 {
     return VkPipelineMultisampleStateCreateInfo{
 
         .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
         .pNext = nullptr,
         .flags = 0,
-        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+        .rasterizationSamples = msaaSamples,
         .sampleShadingEnable = VK_FALSE,
         .minSampleShading = 1.0f,
         .pSampleMask = nullptr,
