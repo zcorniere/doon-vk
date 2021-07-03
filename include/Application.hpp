@@ -32,4 +32,5 @@ private:
         bool bWireFrameMode = false;
     } uiRessources = {};
     Camera camera;
+    bool firstMouse = true;
 };

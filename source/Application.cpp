@@ -225,6 +225,7 @@ void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, i
                     if (eng->bInteractWithUi) {
                         eng->window.captureCursor(true);
                         eng->bInteractWithUi = false;
+                        eng->firstMouse = true;
                     } else {
                         eng->window.captureCursor(false);
                         eng->bInteractWithUi = true;
@@ -242,6 +243,11 @@ void Application::cursor_callback(GLFWwindow *win, double xpos, double ypos)
     auto *eng = (Application *)glfwGetWindowUserPointer(win);
     if (eng->bInteractWithUi) return;
 
+    if (eng->firstMouse) {
+        eng->lastX = xpos;
+        eng->lastY = ypos;
+        eng->firstMouse = false;
+    }
     auto xoffset = xpos - eng->lastX;
     auto yoffset = eng->lastY - ypos;
 
