@@ -295,7 +295,7 @@ void VulkanApplication::createGraphicsPipeline()
     builder.scissor.extent = swapchain.getSwapchainExtent();
     builder.colorBlendAttachment = vk_init::populateVkPipelineColorBlendAttachmentState();
     builder.rasterizer = vk_init::populateVkPipelineRasterizationStateCreateInfo(creationParameters.polygonMode);
-    builder.rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    builder.rasterizer.cullMode = creationParameters.cullMode;
     builder.rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     graphicsPipeline = builder.build(device, renderPass);
 

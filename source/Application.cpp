@@ -177,9 +177,15 @@ void Application::drawFrame()
 
 void Application::drawImgui()
 {
-    const std::vector<VkSampleCountFlagBits> counts = {
+    const std::vector<VkSampleCountFlagBits> sampleCount = {
         VK_SAMPLE_COUNT_1_BIT,  VK_SAMPLE_COUNT_2_BIT,  VK_SAMPLE_COUNT_4_BIT,  VK_SAMPLE_COUNT_8_BIT,
         VK_SAMPLE_COUNT_16_BIT, VK_SAMPLE_COUNT_32_BIT, VK_SAMPLE_COUNT_64_BIT,
+    };
+    const std::vector<VkCullModeFlags> cullMode = {
+        VK_CULL_MODE_NONE,
+        VK_CULL_MODE_BACK_BIT,
+        VK_CULL_MODE_FRONT_BIT,
+        VK_CULL_MODE_FRONT_AND_BACK,
     };
 
     ImGui_ImplVulkan_NewFrame();
@@ -195,22 +201,36 @@ void Application::drawImgui()
         }
         ImGui::Checkbox("Show fps in the tile", &uiRessources.bShowFpsInTitle);
     }
-    if (ImGui::Checkbox("Wireframe mode", &uiRessources.bWireFrameMode)) {
-        creationParameters.polygonMode =
-            (uiRessources.bWireFrameMode) ? (VK_POLYGON_MODE_LINE) : (VK_POLYGON_MODE_FILL);
-        framebufferResized = true;
-    }
-    if (ImGui::BeginCombo("##sample_count", vk_utils::tools::to_string(creationParameters.msaaSample).c_str())) {
-        for (const auto &msaa: counts) {
-            bool is_selected = (creationParameters.msaaSample == msaa);
-            if (ImGui::Selectable(vk_utils::tools::to_string(msaa).c_str(), is_selected)) {
-                creationParameters.msaaSample = msaa;
-                framebufferResized = true;
-            }
-            if (is_selected) { ImGui::SetItemDefaultFocus(); }
-            if (msaa == maxMsaaSample) break;
+
+    if (ImGui::CollapsingHeader("Render")) {
+        if (ImGui::Checkbox("Wireframe mode", &uiRessources.bWireFrameMode)) {
+            creationParameters.polygonMode =
+                (uiRessources.bWireFrameMode) ? (VK_POLYGON_MODE_LINE) : (VK_POLYGON_MODE_FILL);
+            framebufferResized = true;
         }
-        ImGui::EndCombo();
+        if (ImGui::BeginCombo("##culling", vk_utils::tools::to_string(creationParameters.cullMode).c_str())) {
+            for (const auto &cu: cullMode) {
+                bool is_selected = (creationParameters.cullMode == cu);
+                if (ImGui::Selectable(vk_utils::tools::to_string(cu).c_str(), is_selected)) {
+                    creationParameters.cullMode = cu;
+                    framebufferResized = true;
+                }
+                if (is_selected) { ImGui::SetItemDefaultFocus(); }
+            }
+            ImGui::EndCombo();
+        }
+        if (ImGui::BeginCombo("##sample_count", vk_utils::tools::to_string(creationParameters.msaaSample).c_str())) {
+            for (const auto &msaa: sampleCount) {
+                bool is_selected = (creationParameters.msaaSample == msaa);
+                if (ImGui::Selectable(vk_utils::tools::to_string(msaa).c_str(), is_selected)) {
+                    creationParameters.msaaSample = msaa;
+                    framebufferResized = true;
+                }
+                if (is_selected) { ImGui::SetItemDefaultFocus(); }
+                if (msaa == maxMsaaSample) break;
+            }
+            ImGui::EndCombo();
+        }
     }
 
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,

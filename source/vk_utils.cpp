@@ -73,6 +73,16 @@ namespace tools
             default: return "Unknown";
         }
     }
+    const std::string to_string(VkCullModeFlags count)
+    {
+        switch (count) {
+            case VK_CULL_MODE_NONE: return "No culling";
+            case VK_CULL_MODE_BACK_BIT: return "Back culling";
+            case VK_CULL_MODE_FRONT_BIT: return "Front culling";
+            case VK_CULL_MODE_FRONT_AND_BACK: return "Both side culling";
+            default: return "Unknown";
+        }
+    }
 
     std::string errorString(VkResult errorCode)
 
