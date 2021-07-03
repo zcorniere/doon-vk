@@ -26,7 +26,7 @@ void Application::run()
 {
     float fElapsedTime = 0;
 
-    for (unsigned i = 0; i < swapChainImages.size(); i++) { updateUniformBuffer(i); }
+    for (unsigned i = 0; i < swapchain.nbOfImage(); i++) { updateUniformBuffer(i); }
     while (!window.shouldClose()) {
         window.setTitle(uiRessources.sWindowTitle);
         auto tp1 = std::chrono::high_resolution_clock::now();
@@ -54,13 +54,13 @@ void Application::drawFrame()
     uint32_t imageIndex;
 
     VK_TRY(vkWaitForFences(device, 1, &frame.inFlightFences, VK_TRUE, UINT64_MAX));
-    VkResult result =
-        vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, frame.imageAvailableSemaphore, nullptr, &imageIndex);
+    VkResult result = vkAcquireNextImageKHR(device, swapchain.getSwapchain(), UINT64_MAX, frame.imageAvailableSemaphore,
+                                            nullptr, &imageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         return recreateSwapchain();
-    } else if (result != VK_SUCCESS) {
-        throw VulkanException(result);
+    } else {
+        VK_TRY(result);
     }
     VK_TRY(vkResetFences(device, 1, &frame.inFlightFences));
     VK_TRY(vkResetCommandBuffer(commandBuffers[imageIndex], 0));
@@ -98,7 +98,7 @@ void Application::drawFrame()
         .renderArea =
             {
                 .offset = {0, 0},
-                .extent = swapChainExtent,
+                .extent = swapchain.getSwapchainExtent(),
             },
         .clearValueCount = static_cast<uint32_t>(clearValues.size()),
         .pClearValues = clearValues.data(),
@@ -129,14 +129,13 @@ void Application::drawFrame()
     VK_TRY(vkEndCommandBuffer(commandBuffers[imageIndex]));
     VK_TRY(vkQueueSubmit(graphicsQueue, 1, &submitInfo, frame.inFlightFences));
 
-    VkSwapchainKHR swapChains[] = {swapChain};
     VkPresentInfoKHR presentInfo{
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .pNext = nullptr,
         .waitSemaphoreCount = 1,
         .pWaitSemaphores = signalSemaphores,
         .swapchainCount = 1,
-        .pSwapchains = swapChains,
+        .pSwapchains = &(swapchain.getSwapchain()),
         .pImageIndices = &imageIndex,
         .pResults = nullptr,
     };
@@ -206,10 +205,7 @@ void Application::updateUniformBuffer(uint32_t currentImage)
         .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
         .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f)),
     };
-    void *mapped = nullptr;
-    vmaMapMemory(allocator, uniformBuffers[currentImage].memory, &mapped);
-    std::memcpy(mapped, &ubo, sizeof(ubo));
-    vmaUnmapMemory(allocator, uniformBuffers[currentImage].memory);
+    copyBuffer(uniformBuffers[currentImage], &ubo, sizeof(ubo));
 }
 
 void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, int)

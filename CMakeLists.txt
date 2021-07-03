@@ -25,6 +25,7 @@ add_executable(${PROJECT_NAME} source/main.cpp
                                source/PipelineBuilder.cpp
                                source/Logger.cpp
                                source/Camera.cpp
+                               source/Swapchain.cpp
                                source/Application.cpp
 )
 

@@ -3,7 +3,7 @@
 #include <deque>
 #include <functional>
 
-struct DeleteionQueue {
+struct DeletionQueue {
     void push(std::function<void()> &&function) { deletor.push_back(function); }
 
     void flush()

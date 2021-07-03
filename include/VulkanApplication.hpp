@@ -3,8 +3,10 @@
 #include "Camera.hpp"
 #include "DeletionQueue.hpp"
 #include "QueueFamilyIndices.hpp"
+#include "Swapchain.hpp"
 #include "Window.hpp"
 #include "types/AllocatedBuffer.hpp"
+#include "types/CreationParameters.hpp"
 #include "types/Frame.hpp"
 #include "types/Material.hpp"
 #include "types/Mesh.hpp"
@@ -79,8 +81,6 @@ private:
     void initSurface();
     void createLogicalDevice();
     void createAllocator();
-    void createSwapchain();
-    void createImageViews();
     void createRenderPass();
     void createGraphicsPipeline();
     void createFramebuffers();
@@ -107,10 +107,7 @@ private:
                          uint32_t mipLevel);
 
 protected:
-    struct {
-        VkPolygonMode polygonMode = VK_POLYGON_MODE_FILL;
-        VkSampleCountFlagBits msaaSample = VK_SAMPLE_COUNT_1_BIT;
-    } creationParameters = {};
+    CreationParameters creationParameters = {};
     Window window;
     VkInstance instance = VK_NULL_HANDLE;
     VkDebugUtilsMessengerEXT debugUtilsMessenger = VK_NULL_HANDLE;
@@ -127,14 +124,10 @@ protected:
     VkSurfaceKHR surface = VK_NULL_HANDLE;
 
     // Swapchain
-    VkSwapchainKHR swapChain = VK_NULL_HANDLE;
-    std::vector<VkImage> swapChainImages;
-    VkFormat swapChainImageFormat;
-    VkExtent2D swapChainExtent;
-    std::vector<VkImageView> swapChainImageViews;
+    Swapchain swapchain;
 
     // Pipeline
-    VkRenderPass renderPass;
+    VkRenderPass renderPass = VK_NULL_HANDLE;
     VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
     VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
     VkPipeline graphicsPipeline = VK_NULL_HANDLE;
@@ -175,6 +168,6 @@ protected:
     AllocatedImage colorImage = {};
 
 private:
-    DeleteionQueue mainDeletionQueue;
-    DeleteionQueue swapchainDeletionQueue;
+    DeletionQueue mainDeletionQueue;
+    DeletionQueue swapchainDeletionQueue;
 };

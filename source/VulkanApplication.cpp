@@ -19,6 +19,7 @@ VulkanApplication::VulkanApplication(): window("Vulkan", 800, 600)
 VulkanApplication::~VulkanApplication()
 {
     vkDeviceWaitIdle(device);
+    swapchain.destroy();
     swapchainDeletionQueue.flush();
     mainDeletionQueue.flush();
 }
@@ -30,10 +31,11 @@ void VulkanApplication::init()
     initSurface();
     pickPhysicalDevice();
     createLogicalDevice();
+
+    swapchain.init(window, physical_device, device, surface);
+
     createAllocator();
-    createSwapchain();
     createSyncObjects();
-    createImageViews();
     createRenderPass();
     createDescriptorSetLayout();
     createGraphicsPipeline();
@@ -174,74 +176,11 @@ void VulkanApplication::createAllocator()
     VK_TRY(vmaCreateAllocator(&allocatorInfo, &allocator));
     mainDeletionQueue.push([&]() { vmaDestroyAllocator(allocator); });
 }
-void VulkanApplication::createSwapchain()
-{
-    auto indices = QueueFamilyIndices::findQueueFamilies(physical_device, surface);
-
-    auto swapChainSupport = SwapChainSupportDetails::querySwapChainSupport(physical_device, surface);
-    auto surfaceFormat = swapChainSupport.chooseSwapSurfaceFormat();
-    auto presentMode = swapChainSupport.chooseSwapPresentMode();
-    auto extent = swapChainSupport.chooseSwapExtent(window);
-    uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
-    if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
-        imageCount = swapChainSupport.capabilities.maxImageCount;
-    }
-
-    VkSwapchainCreateInfoKHR createInfo{
-        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-        .pNext = nullptr,
-        .surface = surface,
-        .minImageCount = imageCount,
-        .imageFormat = surfaceFormat.format,
-        .imageColorSpace = surfaceFormat.colorSpace,
-        .imageExtent = extent,
-        .imageArrayLayers = 1,
-        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-        .preTransform = swapChainSupport.capabilities.currentTransform,
-        .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-        .presentMode = presentMode,
-        .clipped = VK_TRUE,
-        .oldSwapchain = nullptr,
-    };
-    uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
-
-    if (indices.graphicsFamily != indices.presentFamily) {
-        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-        createInfo.queueFamilyIndexCount = 2;
-        createInfo.pQueueFamilyIndices = queueFamilyIndices;
-    } else {
-        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        createInfo.queueFamilyIndexCount = 0;        // Optional
-        createInfo.pQueueFamilyIndices = nullptr;    // Optional
-    }
-    VK_TRY(vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain));
-    swapchainDeletionQueue.push([&]() { vkDestroySwapchainKHR(device, swapChain, nullptr); });
-
-    vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
-    swapChainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(device, swapChain, &imageCount, swapChainImages.data());
-
-    swapChainImageFormat = surfaceFormat.format;
-    swapChainExtent = extent;
-}
-
-void VulkanApplication::createImageViews()
-{
-    swapChainImageViews.resize(swapChainImages.size());
-
-    for (size_t i = 0; i < swapChainImages.size(); ++i) {
-        auto createInfo = vk_init::populateVkImageViewCreateInfo(swapChainImages[i], swapChainImageFormat);
-        VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &swapChainImageViews[i]));
-    }
-    swapchainDeletionQueue.push([&]() {
-        for (auto &imageView: swapChainImageViews) { vkDestroyImageView(device, imageView, nullptr); }
-    });
-}
 
 void VulkanApplication::createRenderPass()
 {
     VkAttachmentDescription colorAttachment{
-        .format = swapChainImageFormat,
+        .format = swapchain.getSwapchainFormat(),
         .samples = creationParameters.msaaSample,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
@@ -263,7 +202,7 @@ void VulkanApplication::createRenderPass()
         .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
     };
     VkAttachmentDescription colorAttachmentResolve{
-        .format = swapChainImageFormat,
+        .format = swapchain.getSwapchainFormat(),
         .samples = VK_SAMPLE_COUNT_1_BIT,
         .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -347,12 +286,12 @@ void VulkanApplication::createGraphicsPipeline()
     builder.depthStencil = vk_init::populateVkPipelineDepthStencilStateCreateInfo();
     builder.viewport.x = 0.0f;
     builder.viewport.y = 0.0f;
-    builder.viewport.width = swapChainExtent.width;
-    builder.viewport.height = swapChainExtent.height;
+    builder.viewport.width = swapchain.getSwapchainExtent().width;
+    builder.viewport.height = swapchain.getSwapchainExtent().height;
     builder.viewport.minDepth = 0.0f;
     builder.viewport.maxDepth = 1.0f;
     builder.scissor.offset = {0, 0};
-    builder.scissor.extent = swapChainExtent;
+    builder.scissor.extent = swapchain.getSwapchainExtent();
     builder.colorBlendAttachment = vk_init::populateVkPipelineColorBlendAttachmentState();
     builder.rasterizer = vk_init::populateVkPipelineRasterizationStateCreateInfo(creationParameters.polygonMode);
     builder.rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
@@ -369,18 +308,18 @@ void VulkanApplication::createGraphicsPipeline()
 
 void VulkanApplication::createFramebuffers()
 {
-    swapChainFramebuffers.resize(swapChainImageViews.size());
-    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+    swapChainFramebuffers.resize(swapchain.nbOfImage());
+    for (size_t i = 0; i < swapchain.nbOfImage(); i++) {
         std::array<VkImageView, 3> attachments = {colorImage.imageView, depthResources.imageView,
-                                                  swapChainImageViews[i]};
+                                                  swapchain.getSwapchainImageView(i)};
 
         VkFramebufferCreateInfo framebufferInfo{
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
             .renderPass = renderPass,
             .attachmentCount = static_cast<uint32_t>(attachments.size()),
             .pAttachments = attachments.data(),
-            .width = swapChainExtent.width,
-            .height = swapChainExtent.height,
+            .width = swapchain.getSwapchainExtent().width,
+            .height = swapchain.getSwapchainExtent().height,
             .layers = 1,
         };
 
@@ -559,8 +498,8 @@ void VulkanApplication::createUniformBuffers()
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
 
-    uniformBuffers.resize(swapChainImages.size());
-    for (size_t i = 0; i < swapChainImages.size(); i++) {
+    uniformBuffers.resize(swapchain.nbOfImage());
+    for (size_t i = 0; i < swapchain.nbOfImage(); i++) {
         VK_TRY(vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &uniformBuffers[i].buffer, &uniformBuffers[i].memory,
                                nullptr));
     }
@@ -574,14 +513,14 @@ void VulkanApplication::createDescriptorPool()
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
 
     poolSizes.at(0).type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizes.at(0).descriptorCount = static_cast<uint32_t>(swapChainImages.size());
+    poolSizes.at(0).descriptorCount = static_cast<uint32_t>(swapchain.nbOfImage());
     poolSizes.at(1).type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes.at(1).descriptorCount = static_cast<uint32_t>(swapChainImages.size());
+    poolSizes.at(1).descriptorCount = static_cast<uint32_t>(swapchain.nbOfImage());
 
     VkDescriptorPoolCreateInfo poolInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .pNext = nullptr,
-        .maxSets = static_cast<uint32_t>(swapChainImages.size()),
+        .maxSets = static_cast<uint32_t>(swapchain.nbOfImage()),
         .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
         .pPoolSizes = poolSizes.data(),
     };
@@ -591,17 +530,17 @@ void VulkanApplication::createDescriptorPool()
 
 void VulkanApplication::createDescriptorSets()
 {
-    std::vector<VkDescriptorSetLayout> layouts(swapChainImages.size(), descriptorSetLayout);
+    std::vector<VkDescriptorSetLayout> layouts(swapchain.nbOfImage(), descriptorSetLayout);
     VkDescriptorSetAllocateInfo allocInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
         .pNext = nullptr,
         .descriptorPool = descriptorPool,
-        .descriptorSetCount = static_cast<uint32_t>(swapChainImages.size()),
+        .descriptorSetCount = static_cast<uint32_t>(swapchain.nbOfImage()),
         .pSetLayouts = layouts.data(),
     };
-    descriptorSets.resize(swapChainImages.size());
+    descriptorSets.resize(swapchain.nbOfImage());
     VK_TRY(vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()));
-    for (size_t i = 0; i < swapChainImages.size(); ++i) {
+    for (size_t i = 0; i < swapchain.nbOfImage(); ++i) {
         VkDescriptorBufferInfo bufferInfo{
             .buffer = uniformBuffers[i].buffer,
             .offset = 0,
@@ -748,12 +687,7 @@ void VulkanApplication::createDepthResources()
         .flags = 0,
         .imageType = VK_IMAGE_TYPE_2D,
         .format = depthFormat,
-        .extent =
-            {
-                .width = swapChainExtent.width,
-                .height = swapChainExtent.height,
-                .depth = 1,
-            },
+        .extent = swapchain.getSwapchainExtent3D(),
         .mipLevels = 1,
         .arrayLayers = 1,
         .samples = creationParameters.msaaSample,
@@ -786,13 +720,8 @@ void VulkanApplication::createColorResources()
         .pNext = nullptr,
         .flags = 0,
         .imageType = VK_IMAGE_TYPE_2D,
-        .format = swapChainImageFormat,
-        .extent =
-            {
-                .width = swapChainExtent.width,
-                .height = swapChainExtent.height,
-                .depth = 1,
-            },
+        .format = swapchain.getSwapchainFormat(),
+        .extent = swapchain.getSwapchainExtent3D(),
         .mipLevels = 1,
         .arrayLayers = 1,
         .samples = creationParameters.msaaSample,
@@ -806,7 +735,7 @@ void VulkanApplication::createColorResources()
     };
     VK_TRY(vmaCreateImage(allocator, &imageInfo, &allocInfo, &colorImage.image, &colorImage.memory, nullptr));
 
-    auto createInfo = vk_init::populateVkImageViewCreateInfo(colorImage.image, swapChainImageFormat);
+    auto createInfo = vk_init::populateVkImageViewCreateInfo(colorImage.image, swapchain.getSwapchainFormat());
     createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &colorImage.imageView));
 
@@ -881,11 +810,11 @@ void VulkanApplication::recreateSwapchain()
 
     logger->info("Swapchain") << "Recreaing swapchain...";
     LOGGER_ENDL;
+
     vkDeviceWaitIdle(device);
     swapchainDeletionQueue.flush();
 
-    createSwapchain();
-    createImageViews();
+    swapchain.recreate(window, physical_device, device, surface);
     createRenderPass();
     createGraphicsPipeline();
     createColorResources();
@@ -896,7 +825,7 @@ void VulkanApplication::recreateSwapchain()
     createDescriptorSets();
     createCommandBuffers();
     createImgui();
-    logger->info("Swapchain") << "Swapchain recreation complete... { height=" << swapChainExtent.height
-                              << ", width =" << swapChainExtent.width << "}";
+    logger->info("Swapchain") << "Swapchain recreation complete... { height=" << swapchain.getSwapchainExtent().height
+                              << ", width =" << swapchain.getSwapchainExtent().width << "}";
     LOGGER_ENDL;
 }
