@@ -151,11 +151,7 @@ protected:
 
     std::unordered_map<std::string, GPUMesh> loadedMeshes;
 
-    // Uniform buffers
-    std::vector<AllocatedBuffer> uniformBuffers;
-
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
-    std::vector<VkDescriptorSet> descriptorSets;
 
     // Texture
     std::unordered_map<std::string, AllocatedImage> loadedTextures;

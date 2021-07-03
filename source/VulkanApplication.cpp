@@ -46,6 +46,7 @@ void VulkanApplication::init()
 
     loadTextures();
     loadModel();
+
     createTextureSampler();
     createUniformBuffers();
     createDescriptorPool();
@@ -467,7 +468,7 @@ void VulkanApplication::createDescriptorSetLayout()
     };
     VkDescriptorSetLayoutBinding uboLayoutBinding{
         .binding = 0,
-        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         .descriptorCount = 1,
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
         .pImmutableSamplers = nullptr,
@@ -486,7 +487,7 @@ void VulkanApplication::createDescriptorSetLayout()
 
 void VulkanApplication::createUniformBuffers()
 {
-    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+    VkDeviceSize bufferSize = sizeof(UniformBufferObject) * loadedMeshes.size();
     VmaAllocationCreateInfo allocInfo{
         .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
     };
@@ -494,17 +495,18 @@ void VulkanApplication::createUniformBuffers()
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .pNext = nullptr,
         .size = bufferSize,
-        .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
 
-    uniformBuffers.resize(swapchain.nbOfImage());
-    for (size_t i = 0; i < swapchain.nbOfImage(); i++) {
-        VK_TRY(vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &uniformBuffers[i].buffer, &uniformBuffers[i].memory,
-                               nullptr));
+    for (auto &f: frames) {
+        VK_TRY(vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &f.data.uniformBuffers.buffer,
+                               &f.data.uniformBuffers.memory, nullptr));
     }
     swapchainDeletionQueue.push([&]() {
-        for (auto &i: uniformBuffers) { vmaDestroyBuffer(allocator, i.buffer, i.memory); }
+        for (auto &f: frames) {
+            vmaDestroyBuffer(allocator, f.data.uniformBuffers.buffer, f.data.uniformBuffers.memory);
+        }
     });
 }
 
@@ -530,19 +532,18 @@ void VulkanApplication::createDescriptorPool()
 
 void VulkanApplication::createDescriptorSets()
 {
-    std::vector<VkDescriptorSetLayout> layouts(swapchain.nbOfImage(), descriptorSetLayout);
-    VkDescriptorSetAllocateInfo allocInfo{
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-        .pNext = nullptr,
-        .descriptorPool = descriptorPool,
-        .descriptorSetCount = static_cast<uint32_t>(swapchain.nbOfImage()),
-        .pSetLayouts = layouts.data(),
-    };
-    descriptorSets.resize(swapchain.nbOfImage());
-    VK_TRY(vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()));
-    for (size_t i = 0; i < swapchain.nbOfImage(); ++i) {
+    for (auto &f: frames) {
+        VkDescriptorSetAllocateInfo allocInfo{
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+            .pNext = nullptr,
+            .descriptorPool = descriptorPool,
+            .descriptorSetCount = 1,
+            .pSetLayouts = &descriptorSetLayout,
+        };
+        VK_TRY(vkAllocateDescriptorSets(device, &allocInfo, &f.data.objectDescriptor));
+
         VkDescriptorBufferInfo bufferInfo{
-            .buffer = uniformBuffers[i].buffer,
+            .buffer = f.data.uniformBuffers.buffer,
             .offset = 0,
             .range = sizeof(UniformBufferObject),
         };
@@ -551,23 +552,23 @@ void VulkanApplication::createDescriptorSets()
             .imageView = loadedTextures.at("viking_room").imageView,
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         };
+
         std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
         descriptorWrites.at(0).sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites.at(0).dstSet = descriptorSets[i];
+        descriptorWrites.at(0).dstSet = f.data.objectDescriptor;
         descriptorWrites.at(0).dstBinding = 0;
         descriptorWrites.at(0).dstArrayElement = 0;
         descriptorWrites.at(0).descriptorCount = 1;
-        descriptorWrites.at(0).descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrites.at(0).descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         descriptorWrites.at(0).pBufferInfo = &bufferInfo;
 
         descriptorWrites.at(1).sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites.at(1).dstSet = descriptorSets[i];
+        descriptorWrites.at(1).dstSet = f.data.objectDescriptor;
         descriptorWrites.at(1).dstBinding = 1;
         descriptorWrites.at(1).dstArrayElement = 0;
         descriptorWrites.at(1).descriptorCount = 1;
         descriptorWrites.at(1).descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         descriptorWrites.at(1).pImageInfo = &imageInfo;
-
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0,
                                nullptr);
     }

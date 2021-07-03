@@ -26,7 +26,24 @@ void Application::run()
 {
     float fElapsedTime = 0;
 
-    for (unsigned i = 0; i < swapchain.nbOfImage(); i++) { updateUniformBuffer(i); }
+    sceneModels.push_back({
+        .mesh = loadedMeshes["viking_room"],
+        .ubo =
+            {
+                .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(0.0f, -0.6f, 0.0f)),
+                .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+                .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f)),
+            },
+    });
+    sceneModels.push_back({
+        .mesh = loadedMeshes["cube"],
+        .ubo =
+            {
+                .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(0.0f, -0.6f, 0.0f)),
+                .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+                .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f)),
+            },
+    });
     while (!window.shouldClose()) {
         window.setTitle(uiRessources.sWindowTitle);
         auto tp1 = std::chrono::high_resolution_clock::now();
@@ -91,6 +108,12 @@ void Application::drawFrame()
     clearValues.at(0).color = {{0.0f, 0.0f, 0.0f, 1.0f}};
     clearValues.at(1).depthStencil = {1.0f, 0};
 
+    void *objectData = nullptr;
+    vmaMapMemory(allocator, frame.data.uniformBuffers.memory, &objectData);
+    UniformBufferObject *objectSSBI = (UniformBufferObject *)objectData;
+    for (unsigned i = 0; i < sceneModels.size(); i++) { objectSSBI[i] = sceneModels.at(i).ubo; }
+    vmaUnmapMemory(allocator, frame.data.uniformBuffers.memory);
+
     VkRenderPassBeginInfo renderPassInfo{
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
         .renderPass = renderPass,
@@ -104,7 +127,6 @@ void Application::drawFrame()
         .pClearValues = clearValues.data(),
     };
     auto gpuCamera = camera.getGPUCameraData();
-    auto &mesh = loadedMeshes.at("viking_room");
     VK_TRY(vkBeginCommandBuffer(commandBuffers[imageIndex], &beginInfo));
     vkCmdPushConstants(commandBuffers[imageIndex], pipelineLayout,
                        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(gpuCamera), &gpuCamera);
@@ -112,16 +134,19 @@ void Application::drawFrame()
     {
         vkCmdBindPipeline(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-        VkBuffer vertexBuffers[] = {mesh.meshBuffer.buffer};
-        VkDeviceSize offsets[] = {0};
+        for (const auto &ro: sceneModels) {
 
-        vkCmdBindVertexBuffers(commandBuffers[imageIndex], 0, 1, vertexBuffers, offsets);
-        vkCmdBindIndexBuffer(commandBuffers[imageIndex], mesh.meshBuffer.buffer, mesh.indicesOffset,
-                             VK_INDEX_TYPE_UINT32);
-        vkCmdBindDescriptorSets(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
-                                &descriptorSets[imageIndex], 0, nullptr);
+            VkBuffer vertexBuffers[] = {ro.mesh.meshBuffer.buffer};
+            VkDeviceSize offsets[] = {0};
 
-        vkCmdDrawIndexed(commandBuffers[imageIndex], mesh.indicesSize, 1, 0, 0, 0);
+            vkCmdBindVertexBuffers(commandBuffers[imageIndex], 0, 1, vertexBuffers, offsets);
+            vkCmdBindIndexBuffer(commandBuffers[imageIndex], ro.mesh.meshBuffer.buffer, ro.mesh.indicesOffset,
+                                 VK_INDEX_TYPE_UINT32);
+            vkCmdBindDescriptorSets(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
+                                    &frame.data.objectDescriptor, 0, nullptr);
+
+            vkCmdDrawIndexed(commandBuffers[imageIndex], ro.mesh.indicesSize, 1, 0, 0, 0);
+        }
     }
     ImGui::Render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffers[imageIndex]);
@@ -205,7 +230,7 @@ void Application::updateUniformBuffer(uint32_t currentImage)
         .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
         .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f)),
     };
-    copyBuffer(uniformBuffers[currentImage], &ubo, sizeof(ubo));
+    copyBuffer(frames[currentImage].data.uniformBuffers, &ubo, sizeof(ubo));
 }
 
 void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, int)

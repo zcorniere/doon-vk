@@ -1,7 +1,8 @@
 #pragma once
 
 #include "VulkanApplication.hpp"
-#include "memory"
+#include "types/RenderObject.hpp"
+#include <vector>
 
 class Application : public VulkanApplication
 {
@@ -32,5 +33,7 @@ private:
         bool bWireFrameMode = false;
     } uiRessources = {};
     Camera camera;
+
+    std::vector<RenderObject> sceneModels;
     bool firstMouse = true;
 };

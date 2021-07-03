@@ -1,11 +1,15 @@
-#version 450
+#version 460
 #extension GL_ARB_separate_shader_objects : enable
 
-layout(set = 0, binding = 0) uniform UniformBufferObject {
+struct UniformBufferObject {
     mat4 translation;
     mat4 rotation;
     mat4 scale;
-} ubo;
+};
+
+layout (std140, set = 0, binding = 0) readonly buffer ObjectBuffer {
+    UniformBufferObject objects[];
+} objectBuffer;
 
 layout (push_constant) uniform constants {
     vec4 position;
@@ -21,6 +25,7 @@ layout(location = 0) out vec3 fragColor;
 layout(location = 1) out vec2 fragTextCoords;
 
 void main() {
+    UniformBufferObject ubo = objectBuffer.objects[gl_BaseInstance];
     gl_Position = cameraData.viewproj * (ubo.translation * ubo.rotation  * ubo.scale) * vec4(inPosition, 1.0);
     fragColor = inColor;
     fragTextCoords = inTextCoords;
