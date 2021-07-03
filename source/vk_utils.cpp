@@ -60,6 +60,20 @@ uint32_t findMemoryType(VkPhysicalDevice &physicalDevice, uint32_t typeFilter, V
 
 namespace tools
 {
+    const std::string to_string(VkSampleCountFlagBits count)
+    {
+        switch (count) {
+            case VK_SAMPLE_COUNT_1_BIT: return "No MSAA";
+            case VK_SAMPLE_COUNT_2_BIT: return "2X MSAA";
+            case VK_SAMPLE_COUNT_4_BIT: return "4X MSAA";
+            case VK_SAMPLE_COUNT_8_BIT: return "8X MSAA";
+            case VK_SAMPLE_COUNT_16_BIT: return "16X MSAA";
+            case VK_SAMPLE_COUNT_32_BIT: return "32X MSAA";
+            case VK_SAMPLE_COUNT_64_BIT: return "64X MSAA";
+            default: return "Unknown";
+        }
+    }
+
     std::string errorString(VkResult errorCode)
 
     {

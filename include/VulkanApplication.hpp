@@ -109,12 +109,13 @@ private:
 protected:
     struct {
         VkPolygonMode polygonMode = VK_POLYGON_MODE_FILL;
+        VkSampleCountFlagBits msaaSample = VK_SAMPLE_COUNT_1_BIT;
     } creationParameters = {};
     Window window;
     VkInstance instance = VK_NULL_HANDLE;
     VkDebugUtilsMessengerEXT debugUtilsMessenger = VK_NULL_HANDLE;
     VkPhysicalDevice physical_device = VK_NULL_HANDLE;
-    VkSampleCountFlagBits msaaSample = VK_SAMPLE_COUNT_1_BIT;
+    VkSampleCountFlagBits maxMsaaSample = VK_SAMPLE_COUNT_1_BIT;
     VkDevice device = VK_NULL_HANDLE;
     VmaAllocator allocator;
 

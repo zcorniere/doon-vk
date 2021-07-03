@@ -17,6 +17,7 @@ uint32_t findMemoryType(VkPhysicalDevice &physicalDevice, uint32_t typeFilter, V
 
 namespace tools
 {
+    const std::string to_string(VkSampleCountFlagBits count);
     std::string errorString(VkResult errorCode);
     std::string physicalDeviceTypeString(VkPhysicalDeviceType type);
 }    // namespace tools

@@ -153,6 +153,11 @@ void Application::drawFrame()
 
 void Application::drawImgui()
 {
+    const std::vector<VkSampleCountFlagBits> counts = {
+        VK_SAMPLE_COUNT_1_BIT,  VK_SAMPLE_COUNT_2_BIT,  VK_SAMPLE_COUNT_4_BIT,  VK_SAMPLE_COUNT_8_BIT,
+        VK_SAMPLE_COUNT_16_BIT, VK_SAMPLE_COUNT_32_BIT, VK_SAMPLE_COUNT_64_BIT,
+    };
+
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
@@ -169,8 +174,21 @@ void Application::drawImgui()
     if (ImGui::Checkbox("Wireframe mode", &uiRessources.bWireFrameMode)) {
         creationParameters.polygonMode =
             (uiRessources.bWireFrameMode) ? (VK_POLYGON_MODE_LINE) : (VK_POLYGON_MODE_FILL);
-        recreateSwapchain();
+        framebufferResized = true;
     }
+    if (ImGui::BeginCombo("##sample_count", vk_utils::tools::to_string(creationParameters.msaaSample).c_str())) {
+        for (const auto &msaa: counts) {
+            bool is_selected = (creationParameters.msaaSample == msaa);
+            if (ImGui::Selectable(vk_utils::tools::to_string(msaa).c_str(), is_selected)) {
+                creationParameters.msaaSample = msaa;
+                framebufferResized = true;
+            }
+            if (is_selected) { ImGui::SetItemDefaultFocus(); }
+            if (msaa == maxMsaaSample) break;
+        }
+        ImGui::EndCombo();
+    }
+
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
                 ImGui::GetIO().Framerate);
     ImGui::End();

@@ -109,7 +109,8 @@ void VulkanApplication::pickPhysicalDevice()
     for (const auto &device: devices) {
         if (isDeviceSuitable(device, surface)) {
             physical_device = device;
-            msaaSample = getMexUsableSampleCount(physical_device);
+            maxMsaaSample = getMexUsableSampleCount(physical_device);
+            creationParameters.msaaSample = maxMsaaSample;
             break;
         }
     }
@@ -241,7 +242,7 @@ void VulkanApplication::createRenderPass()
 {
     VkAttachmentDescription colorAttachment{
         .format = swapChainImageFormat,
-        .samples = msaaSample,
+        .samples = creationParameters.msaaSample,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -253,7 +254,7 @@ void VulkanApplication::createRenderPass()
         .format = vk_utils::findSupportedFormat(
             physical_device, {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
             VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT),
-        .samples = msaaSample,
+        .samples = creationParameters.msaaSample,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -342,7 +343,7 @@ void VulkanApplication::createGraphicsPipeline()
     builder.vertexInputInfo = vk_init::populateVkPipelineVertexInputStateCreateInfo(binding, attribute);
     builder.inputAssembly =
         vk_init::populateVkPipelineInputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE);
-    builder.multisampling = vk_init::populateVkPipelineMultisampleStateCreateInfo(msaaSample);
+    builder.multisampling = vk_init::populateVkPipelineMultisampleStateCreateInfo(creationParameters.msaaSample);
     builder.depthStencil = vk_init::populateVkPipelineDepthStencilStateCreateInfo();
     builder.viewport.x = 0.0f;
     builder.viewport.y = 0.0f;
@@ -755,7 +756,7 @@ void VulkanApplication::createDepthResources()
             },
         .mipLevels = 1,
         .arrayLayers = 1,
-        .samples = msaaSample,
+        .samples = creationParameters.msaaSample,
         .tiling = VK_IMAGE_TILING_OPTIMAL,
         .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
@@ -794,7 +795,7 @@ void VulkanApplication::createColorResources()
             },
         .mipLevels = 1,
         .arrayLayers = 1,
-        .samples = msaaSample,
+        .samples = creationParameters.msaaSample,
         .tiling = VK_IMAGE_TILING_OPTIMAL,
         .usage = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
@@ -853,7 +854,7 @@ void VulkanApplication::createImgui()
         .DescriptorPool = imguiPool,
         .MinImageCount = 3,
         .ImageCount = 3,
-        .MSAASamples = msaaSample,
+        .MSAASamples = creationParameters.msaaSample,
     };
 
     ImGui_ImplVulkan_Init(&init_info, renderPass);
@@ -862,9 +863,10 @@ void VulkanApplication::createImgui()
 
     ImGui_ImplVulkan_DestroyFontUploadObjects();
 
-    mainDeletionQueue.push([=]() {
+    swapchainDeletionQueue.push([=]() {
         vkDestroyDescriptorPool(device, imguiPool, nullptr);
         ImGui_ImplVulkan_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
     });
 }
 
@@ -893,6 +895,7 @@ void VulkanApplication::recreateSwapchain()
     createDescriptorPool();
     createDescriptorSets();
     createCommandBuffers();
+    createImgui();
     logger->info("Swapchain") << "Swapchain recreation complete... { height=" << swapChainExtent.height
                               << ", width =" << swapChainExtent.width << "}";
     LOGGER_ENDL;
