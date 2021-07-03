@@ -1,0 +1,23 @@
+# http://editorconfig.org
+root = true
+
+# Basic common configuration
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+charset = utf-8
+# This prevent unrelevant diff
+trim_trailing_whitespace = true
+# This is a POSIX standard for human readable document, lets stick to it
+# https://stackoverflow.com/questions/729692/why-should-text-files-end-with-a-newline?answertab=votes#tab-top
+insert_final_newline = true
+
+[Makefile]
+indent_style = tab
+indent_size = 4
+
+# 4 space indentation
+[*.py]
+indent_style = space
+indent_size = 4
