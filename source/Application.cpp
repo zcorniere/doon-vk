@@ -134,8 +134,8 @@ void Application::drawFrame()
     {
         vkCmdBindPipeline(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-        for (const auto &ro: sceneModels) {
-            const auto &mesh = loadedMeshes[ro.meshID];
+        for (unsigned i = 0; i < sceneModels.size(); i++) {
+            const auto &mesh = loadedMeshes[sceneModels.at(i).meshID];
             VkBuffer vertexBuffers[] = {mesh.meshBuffer.buffer};
             VkDeviceSize offsets[] = {0};
 
@@ -145,7 +145,7 @@ void Application::drawFrame()
             vkCmdBindDescriptorSets(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
                                     &frame.data.objectDescriptor, 0, nullptr);
 
-            vkCmdDrawIndexed(commandBuffers[imageIndex], mesh.indicesSize, 1, 0, 0, 0);
+            vkCmdDrawIndexed(commandBuffers[imageIndex], mesh.indicesSize, 1, 0, 0, i);
         }
     }
     ImGui::Render();
