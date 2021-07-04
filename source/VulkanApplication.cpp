@@ -151,10 +151,18 @@ void VulkanApplication::createLogicalDevice()
         .fillModeNonSolid = VK_TRUE,
         .samplerAnisotropy = VK_TRUE,
     };
+    VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndex{
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
+        .pNext = nullptr,
+        .shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
+        .descriptorBindingPartiallyBound = VK_TRUE,
+        .descriptorBindingVariableDescriptorCount = VK_TRUE,
+        .runtimeDescriptorArray = VK_TRUE,
+    };
 
     VkDeviceCreateInfo createInfo{
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        .pNext = nullptr,
+        .pNext = &descriptorIndex,
         .queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size()),
         .pQueueCreateInfos = queueCreateInfos.data(),
         .enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size()),
@@ -461,10 +469,21 @@ void VulkanApplication::loadModel()
 
 void VulkanApplication::createDescriptorSetLayout()
 {
+    std::array<VkDescriptorBindingFlags, 2> flags;
+    flags.at(0) = 0;
+    flags.at(1) = VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
+
+    VkDescriptorSetLayoutBindingFlagsCreateInfo bindingInfo{
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
+        .pNext = nullptr,
+        .bindingCount = flags.size(),
+        .pBindingFlags = flags.data(),
+    };
+
     VkDescriptorSetLayoutBinding samplerLayoutBiding{
         .binding = 1,
         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        .descriptorCount = 1,
+        .descriptorCount = 32,
         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
         .pImmutableSamplers = nullptr,
     };
@@ -479,7 +498,7 @@ void VulkanApplication::createDescriptorSetLayout()
     std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, samplerLayoutBiding};
     VkDescriptorSetLayoutCreateInfo layoutInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-        .pNext = nullptr,
+        .pNext = &bindingInfo,
         .bindingCount = static_cast<uint32_t>(bindings.size()),
         .pBindings = bindings.data(),
     };
@@ -518,7 +537,7 @@ void VulkanApplication::createDescriptorPool()
     poolSizes.at(0).type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes.at(0).descriptorCount = static_cast<uint32_t>(swapchain.nbOfImage());
     poolSizes.at(1).type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes.at(1).descriptorCount = static_cast<uint32_t>(swapchain.nbOfImage());
+    poolSizes.at(1).descriptorCount = 100;
 
     VkDescriptorPoolCreateInfo poolInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
@@ -533,10 +552,26 @@ void VulkanApplication::createDescriptorPool()
 
 void VulkanApplication::createDescriptorSets()
 {
+    uint32_t counts[] = {32};
+    VkDescriptorSetVariableDescriptorCountAllocateInfo set_counts{
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO,
+        .pNext = nullptr,
+        .descriptorSetCount = std::size(counts),
+        .pDescriptorCounts = counts,
+    };
+    std::vector<VkDescriptorImageInfo> imagesInfos;
+    for (auto &[_, t]: loadedTextures) {
+        imagesInfos.push_back({
+            .sampler = textureSampler,
+            .imageView = t.imageView,
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        });
+    }
+
     for (auto &f: frames) {
         VkDescriptorSetAllocateInfo allocInfo{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-            .pNext = nullptr,
+            .pNext = &set_counts,
             .descriptorPool = descriptorPool,
             .descriptorSetCount = 1,
             .pSetLayouts = &descriptorSetLayout,
@@ -547,11 +582,6 @@ void VulkanApplication::createDescriptorSets()
             .buffer = f.data.uniformBuffers.buffer,
             .offset = 0,
             .range = sizeof(UniformBufferObject) * MAX_OBJECT,
-        };
-        VkDescriptorImageInfo imageInfo{
-            .sampler = textureSampler,
-            .imageView = loadedTextures.at("viking_room").imageView,
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         };
 
         std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
@@ -567,9 +597,9 @@ void VulkanApplication::createDescriptorSets()
         descriptorWrites.at(1).dstSet = f.data.objectDescriptor;
         descriptorWrites.at(1).dstBinding = 1;
         descriptorWrites.at(1).dstArrayElement = 0;
-        descriptorWrites.at(1).descriptorCount = 1;
+        descriptorWrites.at(1).descriptorCount = static_cast<uint32_t>(imagesInfos.size());
         descriptorWrites.at(1).descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptorWrites.at(1).pImageInfo = &imageInfo;
+        descriptorWrites.at(1).pImageInfo = imagesInfos.data();
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0,
                                nullptr);
     }
