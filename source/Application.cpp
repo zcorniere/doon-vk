@@ -144,6 +144,8 @@ void Application::drawFrame()
                                  VK_INDEX_TYPE_UINT32);
             vkCmdBindDescriptorSets(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
                                     &frame.data.objectDescriptor, 0, nullptr);
+            vkCmdBindDescriptorSets(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1,
+                                    &texturesSet, 0, nullptr);
 
             vkCmdDrawIndexed(commandBuffers[imageIndex], mesh.indicesSize, 1, 0, 0, i);
         }

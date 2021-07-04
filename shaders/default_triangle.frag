@@ -1,4 +1,4 @@
-#version 450
+#version 460
 #extension GL_ARB_separate_shader_objects : enable
 
 layout(location = 0) in vec3 fragColor;
@@ -9,7 +9,7 @@ layout (push_constant) uniform constants {
 	mat4 viewproj;
 } cameraData;
 
-layout(set = 0, binding = 1) uniform sampler2D texSampler[];
+layout(set = 1, binding = 0) uniform sampler2D texSampler[];
 
 layout(location = 0) out vec4 outColor;
 

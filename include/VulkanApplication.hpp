@@ -89,9 +89,11 @@ private:
     void createSyncObjects();
     void loadModel();
     void createDescriptorSetLayout();
+    void createTextureDescriptorSetLayout();
     void createUniformBuffers();
     void createDescriptorPool();
     void createDescriptorSets();
+    void createTextureDescriptorSets();
     void loadTextures();
     void createTextureSampler();
     void createDepthResources();
@@ -157,6 +159,8 @@ protected:
     std::unordered_map<std::string, AllocatedImage> loadedTextures;
     uint32_t mipLevels = 0;
     VkSampler textureSampler = VK_NULL_HANDLE;
+    VkDescriptorSetLayout texturesSetLayout = VK_NULL_HANDLE;
+    VkDescriptorSet texturesSet = VK_NULL_HANDLE;
 
     // Depthbuffer
     AllocatedImage depthResources = {};
