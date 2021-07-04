@@ -10,6 +10,8 @@
 #include <stb_image.h>
 #include <tiny_obj_loader.h>
 
+#define MAX_OBJECT 10000
+
 VulkanApplication::VulkanApplication(): window("Vulkan", 800, 600)
 {
     window.setUserPointer(this);
@@ -487,14 +489,13 @@ void VulkanApplication::createDescriptorSetLayout()
 
 void VulkanApplication::createUniformBuffers()
 {
-    VkDeviceSize bufferSize = sizeof(UniformBufferObject) * loadedMeshes.size();
     VmaAllocationCreateInfo allocInfo{
         .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
     };
     VkBufferCreateInfo bufferInfo{
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .pNext = nullptr,
-        .size = bufferSize,
+        .size = sizeof(UniformBufferObject) * MAX_OBJECT,
         .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
@@ -545,7 +546,7 @@ void VulkanApplication::createDescriptorSets()
         VkDescriptorBufferInfo bufferInfo{
             .buffer = f.data.uniformBuffers.buffer,
             .offset = 0,
-            .range = sizeof(UniformBufferObject),
+            .range = sizeof(UniformBufferObject) * MAX_OBJECT,
         };
         VkDescriptorImageInfo imageInfo{
             .sampler = textureSampler,
