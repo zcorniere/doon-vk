@@ -27,19 +27,19 @@ void Application::run()
     float fElapsedTime = 0;
 
     sceneModels.push_back({
-        .mesh = loadedMeshes["viking_room"],
+        .meshID = "viking_room",
         .ubo =
             {
-                .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(0.0f, -0.6f, 0.0f)),
+                .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(10.0f, -0.6f, 0.0f)),
                 .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
                 .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f)),
             },
     });
     sceneModels.push_back({
-        .mesh = loadedMeshes["cube"],
+        .meshID = "cube",
         .ubo =
             {
-                .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(0.0f, -0.6f, 0.0f)),
+                .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(-10.0f, 1.f, 0.0f)),
                 .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
                 .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f)),
             },
@@ -135,17 +135,17 @@ void Application::drawFrame()
         vkCmdBindPipeline(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
         for (const auto &ro: sceneModels) {
-
-            VkBuffer vertexBuffers[] = {ro.mesh.meshBuffer.buffer};
+            const auto &mesh = loadedMeshes[ro.meshID];
+            VkBuffer vertexBuffers[] = {mesh.meshBuffer.buffer};
             VkDeviceSize offsets[] = {0};
 
             vkCmdBindVertexBuffers(commandBuffers[imageIndex], 0, 1, vertexBuffers, offsets);
-            vkCmdBindIndexBuffer(commandBuffers[imageIndex], ro.mesh.meshBuffer.buffer, ro.mesh.indicesOffset,
+            vkCmdBindIndexBuffer(commandBuffers[imageIndex], mesh.meshBuffer.buffer, mesh.indicesOffset,
                                  VK_INDEX_TYPE_UINT32);
             vkCmdBindDescriptorSets(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
                                     &frame.data.objectDescriptor, 0, nullptr);
 
-            vkCmdDrawIndexed(commandBuffers[imageIndex], ro.mesh.indicesSize, 1, 0, 0, 0);
+            vkCmdDrawIndexed(commandBuffers[imageIndex], mesh.indicesSize, 1, 0, 0, 0);
         }
     }
     ImGui::Render();
@@ -177,11 +177,11 @@ void Application::drawFrame()
 
 void Application::drawImgui()
 {
-    const std::vector<VkSampleCountFlagBits> sampleCount = {
+    static const std::vector<VkSampleCountFlagBits> sampleCount = {
         VK_SAMPLE_COUNT_1_BIT,  VK_SAMPLE_COUNT_2_BIT,  VK_SAMPLE_COUNT_4_BIT,  VK_SAMPLE_COUNT_8_BIT,
         VK_SAMPLE_COUNT_16_BIT, VK_SAMPLE_COUNT_32_BIT, VK_SAMPLE_COUNT_64_BIT,
     };
-    const std::vector<VkCullModeFlags> cullMode = {
+    static const std::vector<VkCullModeFlags> cullMode = {
         VK_CULL_MODE_NONE,
         VK_CULL_MODE_BACK_BIT,
         VK_CULL_MODE_FRONT_BIT,
@@ -197,7 +197,7 @@ void Application::drawImgui()
         if (!uiRessources.bShowFpsInTitle) {
             ImGui::InputText("Window Title", uiRessources.sWindowTitle, IM_ARRAYSIZE(uiRessources.sWindowTitle));
         } else {
-            snprintf(uiRessources.sWindowTitle, 128, "%f", ImGui::GetIO().Framerate);
+            snprintf(uiRessources.sWindowTitle, WINDOW_TITLE_MAX_SIZE, "%f", ImGui::GetIO().Framerate);
         }
         ImGui::Checkbox("Show fps in the tile", &uiRessources.bShowFpsInTitle);
     }
@@ -237,25 +237,9 @@ void Application::drawImgui()
         ImGui::InputFloat("Y", &camera.position.y);
         ImGui::InputFloat("Z", &camera.position.x);
     }
-
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
                 ImGui::GetIO().Framerate);
     ImGui::End();
-}
-
-void Application::updateUniformBuffer(uint32_t currentImage)
-{
-    /* static auto startTime = std::chrono::high_resolution_clock::now();
-
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count(); */
-
-    UniformBufferObject ubo{
-        .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(0.0f, -0.6f, 0.0f)),
-        .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
-        .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f)),
-    };
-    copyBuffer(frames[currentImage].data.uniformBuffers, &ubo, sizeof(ubo));
 }
 
 void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, int)

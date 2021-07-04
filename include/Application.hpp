@@ -4,6 +4,8 @@
 #include "types/RenderObject.hpp"
 #include <vector>
 
+#define WINDOW_TITLE_MAX_SIZE 128
+
 class Application : public VulkanApplication
 {
 public:
@@ -22,13 +24,12 @@ public:
 private:
     void drawFrame();
     void drawImgui();
-    void updateUniformBuffer(uint32_t currentImage);
     static void keyboard_callback(GLFWwindow *win, int key, int, int action, int);
     static void cursor_callback(GLFWwindow *win, double xpos, double ypos);
 
 private:
     struct {
-        char sWindowTitle[128] = "Vulkan";
+        char sWindowTitle[WINDOW_TITLE_MAX_SIZE] = "Vulkan";
         bool bShowFpsInTitle = false;
         bool bWireFrameMode = false;
     } uiRessources = {};

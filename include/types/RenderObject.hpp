@@ -1,6 +1,7 @@
 #include "types/Mesh.hpp"
+#include <string>
 
 struct RenderObject {
-    GPUMesh mesh;
+    std::string meshID;
     UniformBufferObject ubo;
 };
