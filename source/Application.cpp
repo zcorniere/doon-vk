@@ -231,6 +231,11 @@ void Application::drawImgui()
             }
             ImGui::EndCombo();
         }
+        ImGui::Text("");
+        ImGui::Text("Camera position");
+        ImGui::InputFloat("X", &camera.position.x);
+        ImGui::InputFloat("Y", &camera.position.y);
+        ImGui::InputFloat("Z", &camera.position.x);
     }
 
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
