@@ -23,6 +23,17 @@ VkFormat findSupportedFormat(VkPhysicalDevice &gpu, const std::vector<VkFormat> 
 bool hasStencilComponent(VkFormat format);
 uint32_t findMemoryType(VkPhysicalDevice &physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
+template <class... FailedValue>
+bool isSwapchainInvalid(const VkResult result, const FailedValue... failedResult)
+{
+    if (((result == failedResult) || ...)) {
+        return true;
+    } else {
+        VK_TRY(result);
+        return false;
+    }
+}
+
 namespace tools
 {
     const std::string to_string(VkSampleCountFlagBits count);

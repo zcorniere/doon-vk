@@ -80,13 +80,12 @@ void Application::drawFrame()
     VkResult result = vkAcquireNextImageKHR(device, swapchain.getSwapchain(), UINT64_MAX, frame.imageAvailableSemaphore,
                                             nullptr, &imageIndex);
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        return recreateSwapchain();
-    } else {
-        VK_TRY(result);
-    }
+    if (vk_utils::isSwapchainInvalid(result, VK_ERROR_OUT_OF_DATE_KHR)) { return recreateSwapchain(); }
+
+    auto &cmd = commandBuffers[imageIndex];
+
     VK_TRY(vkResetFences(device, 1, &frame.inFlightFences));
-    VK_TRY(vkResetCommandBuffer(commandBuffers[imageIndex], 0));
+    VK_TRY(vkResetCommandBuffer(cmd, 0));
     VkSemaphore waitSemaphores[] = {frame.imageAvailableSemaphore};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSemaphore signalSemaphores[] = {frame.renderFinishedSemaphore};
@@ -98,7 +97,7 @@ void Application::drawFrame()
         .pWaitSemaphores = waitSemaphores,
         .pWaitDstStageMask = waitStages,
         .commandBufferCount = 1,
-        .pCommandBuffers = &commandBuffers[imageIndex],
+        .pCommandBuffers = &cmd,
         .signalSemaphoreCount = 1,
         .pSignalSemaphores = signalSemaphores,
     };
@@ -133,33 +132,32 @@ void Application::drawFrame()
         .pClearValues = clearValues.data(),
     };
     auto gpuCamera = camera.getGPUCameraData();
-    VK_TRY(vkBeginCommandBuffer(commandBuffers[imageIndex], &beginInfo));
-    vkCmdPushConstants(commandBuffers[imageIndex], pipelineLayout,
-                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(gpuCamera), &gpuCamera);
-    vkCmdBeginRenderPass(commandBuffers[imageIndex], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    VK_TRY(vkBeginCommandBuffer(cmd, &beginInfo));
+    vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                       sizeof(gpuCamera), &gpuCamera);
+    vkCmdBeginRenderPass(cmd, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     {
-        vkCmdBindPipeline(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
         for (unsigned i = 0; i < sceneModels.size(); i++) {
             const auto &mesh = loadedMeshes[sceneModels.at(i).meshID];
             VkBuffer vertexBuffers[] = {mesh.meshBuffer.buffer};
             VkDeviceSize offsets[] = {0};
 
-            vkCmdBindVertexBuffers(commandBuffers[imageIndex], 0, 1, vertexBuffers, offsets);
-            vkCmdBindIndexBuffer(commandBuffers[imageIndex], mesh.meshBuffer.buffer, mesh.indicesOffset,
-                                 VK_INDEX_TYPE_UINT32);
-            vkCmdBindDescriptorSets(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
+            vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
+            vkCmdBindIndexBuffer(cmd, mesh.meshBuffer.buffer, mesh.indicesOffset, VK_INDEX_TYPE_UINT32);
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
                                     &frame.data.objectDescriptor, 0, nullptr);
-            vkCmdBindDescriptorSets(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1,
-                                    &texturesSet, 0, nullptr);
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texturesSet, 0,
+                                    nullptr);
 
-            vkCmdDrawIndexed(commandBuffers[imageIndex], mesh.indicesSize, 1, 0, 0, i);
+            vkCmdDrawIndexed(cmd, mesh.indicesSize, 1, 0, 0, i);
         }
     }
     ImGui::Render();
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffers[imageIndex]);
-    vkCmdEndRenderPass(commandBuffers[imageIndex]);
-    VK_TRY(vkEndCommandBuffer(commandBuffers[imageIndex]));
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+    vkCmdEndRenderPass(cmd);
+    VK_TRY(vkEndCommandBuffer(cmd));
     VK_TRY(vkQueueSubmit(graphicsQueue, 1, &submitInfo, frame.inFlightFences));
 
     VkPresentInfoKHR presentInfo{
@@ -174,12 +172,11 @@ void Application::drawFrame()
     };
     result = vkQueuePresentKHR(presentQueue, &presentInfo);
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
+    if (vk_utils::isSwapchainInvalid(result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR) || framebufferResized) {
         framebufferResized = false;
         return recreateSwapchain();
-    } else {
-        VK_TRY(result);
     }
+
     currentFrame = (currentFrame + 1) % MAX_FRAME_FRAME_IN_FLIGHT;
 }
 
