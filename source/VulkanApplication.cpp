@@ -886,6 +886,7 @@ void VulkanApplication::recreateSwapchain()
     createUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
+    createTextureDescriptorSets();
     createCommandBuffers();
     createImgui();
     logger->info("Swapchain") << "Swapchain recreation complete... { height=" << swapchain.getSwapchainExtent().height
