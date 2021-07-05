@@ -19,6 +19,5 @@ struct GPUMesh {
     VkDeviceSize verticiesSize;
     VkDeviceSize indicesOffset;
     VkDeviceSize indicesSize;
-    AllocatedBuffer uniformBuffers;
     AllocatedBuffer meshBuffer;
 };

@@ -146,7 +146,6 @@ GPUMesh VulkanApplication::uploadMesh(const CPUMesh &mesh)
 {
     VkDeviceSize verticesSize = sizeof(mesh.verticies[0]) * mesh.verticies.size();
     VkDeviceSize indicesSize = sizeof(mesh.indices[0]) * mesh.indices.size();
-    VkDeviceSize uniformBuffersSize = sizeof(UniformBufferObject);
     VkDeviceSize totalSize = verticesSize + indicesSize;
 
     VkBufferCreateInfo stagingBufferInfo{
@@ -157,16 +156,6 @@ GPUMesh VulkanApplication::uploadMesh(const CPUMesh &mesh)
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
     VmaAllocationCreateInfo stagingAllocInfo{
-        .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
-    };
-    VkBufferCreateInfo uniformBufferInfo{
-        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .pNext = nullptr,
-        .size = uniformBuffersSize,
-        .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-    };
-    VmaAllocationCreateInfo uniformAllocInfo{
         .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
     };
     VkBufferCreateInfo meshBufferInfo{
@@ -190,8 +179,6 @@ GPUMesh VulkanApplication::uploadMesh(const CPUMesh &mesh)
     AllocatedBuffer stagingBuffer{};
     VK_TRY(vmaCreateBuffer(allocator, &stagingBufferInfo, &stagingAllocInfo, &stagingBuffer.buffer,
                            &stagingBuffer.memory, nullptr));
-    VK_TRY(vmaCreateBuffer(allocator, &uniformBufferInfo, &uniformAllocInfo, &gmesh.uniformBuffers.buffer,
-                           &gmesh.uniformBuffers.memory, nullptr));
     VK_TRY(vmaCreateBuffer(allocator, &meshBufferInfo, &meshAllocInfo, &gmesh.meshBuffer.buffer,
                            &gmesh.meshBuffer.memory, nullptr));
 

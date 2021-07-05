@@ -461,10 +461,7 @@ void VulkanApplication::loadModel()
         loadedMeshes[file.path().stem()] = uploadMesh(mesh);
     }
     mainDeletionQueue.push([=]() {
-        for (auto &[_, i]: loadedMeshes) {
-            vmaDestroyBuffer(allocator, i.uniformBuffers.buffer, i.uniformBuffers.memory);
-            vmaDestroyBuffer(allocator, i.meshBuffer.buffer, i.meshBuffer.memory);
-        }
+        for (auto &[_, i]: loadedMeshes) { vmaDestroyBuffer(allocator, i.meshBuffer.buffer, i.meshBuffer.memory); }
     });
 }
 
