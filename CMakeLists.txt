@@ -17,6 +17,7 @@ add_subdirectory(lib)
 
 add_executable(${PROJECT_NAME} source/main.cpp
                                source/Window.cpp
+                               source/VulkanException.cpp
                                source/VulkanApplication.cpp
                                source/VulkanApplication_helpers.cpp
                                source/VulkanApplication_static.cpp
