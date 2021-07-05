@@ -4,11 +4,6 @@
 #include "types/Vertex.hpp"
 #include <vector>
 
-struct UniformBufferObject {
-    glm::mat4 translation;
-    glm::mat4 rotation;
-    glm::mat4 scale;
-};
 struct CPUMesh {
     std::vector<Vertex> verticies;
     std::vector<uint32_t> indices;

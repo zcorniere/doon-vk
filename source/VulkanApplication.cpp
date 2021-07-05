@@ -2,6 +2,7 @@
 #include "Logger.hpp"
 #include "PipelineBuilder.hpp"
 #include "SwapChainSupportDetails.hpp"
+#include "types/vk_types.hpp"
 #include "vk_init.hpp"
 
 #include <backends/imgui_impl_glfw.h>
@@ -524,7 +525,7 @@ void VulkanApplication::createUniformBuffers()
     VkBufferCreateInfo bufferInfo{
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .pNext = nullptr,
-        .size = sizeof(UniformBufferObject) * MAX_OBJECT,
+        .size = sizeof(gpuObject::UniformBufferObject) * MAX_OBJECT,
         .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
@@ -575,7 +576,7 @@ void VulkanApplication::createDescriptorSets()
         VkDescriptorBufferInfo bufferInfo{
             .buffer = f.data.uniformBuffers.buffer,
             .offset = 0,
-            .range = sizeof(UniformBufferObject) * MAX_OBJECT,
+            .range = sizeof(gpuObject::UniformBufferObject) * MAX_OBJECT,
         };
         std::vector<VkWriteDescriptorSet> descriptorWrites{
             {

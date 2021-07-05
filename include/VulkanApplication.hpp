@@ -11,6 +11,7 @@
 #include "types/Material.hpp"
 #include "types/Mesh.hpp"
 #include "types/Vertex.hpp"
+#include "types/vk_types.hpp"
 #include "vk_utils.hpp"
 
 #include <cstring>

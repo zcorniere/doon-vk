@@ -1,7 +1,7 @@
-#include "types/Mesh.hpp"
+#include "types/vk_types.hpp"
 #include <string>
 
 struct RenderObject {
     std::string meshID;
-    UniformBufferObject ubo;
+    gpuObject::UniformBufferObject ubo;
 };

@@ -1,14 +1,14 @@
 #include "Application.hpp"
 #include "Logger.hpp"
+
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_vulkan.h>
+#include <chrono>
 #include <cstring>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <imgui.h>
-
-#include <chrono>
 
 Application::Application()
 {
@@ -30,18 +30,24 @@ void Application::run()
         .meshID = "viking_room",
         .ubo =
             {
-                .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(10.0f, -0.6f, 0.0f)),
-                .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
-                .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f)),
+                .transform =
+                    {
+                        .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(10.0f, -0.6f, 0.0f)),
+                        .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+                        .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f)),
+                    },
             },
     });
     sceneModels.push_back({
         .meshID = "cube",
         .ubo =
             {
-                .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(-10.0f, 1.f, 0.0f)),
-                .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
-                .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f)),
+                .transform =
+                    {
+                        .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(-10.0f, 1.f, 0.0f)),
+                        .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+                        .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f)),
+                    },
             },
     });
     while (!window.shouldClose()) {
@@ -110,7 +116,7 @@ void Application::drawFrame()
 
     void *objectData = nullptr;
     vmaMapMemory(allocator, frame.data.uniformBuffers.memory, &objectData);
-    UniformBufferObject *objectSSBI = (UniformBufferObject *)objectData;
+    gpuObject::UniformBufferObject *objectSSBI = (gpuObject::UniformBufferObject *)objectData;
     for (unsigned i = 0; i < sceneModels.size(); i++) { objectSSBI[i] = sceneModels.at(i).ubo; }
     vmaUnmapMemory(allocator, frame.data.uniformBuffers.memory);
 
