@@ -36,5 +36,7 @@ private:
     Camera camera;
 
     std::vector<RenderObject> sceneModels;
+    std::vector<gpuObject::Material> materials;
+
     bool firstMouse = true;
 };

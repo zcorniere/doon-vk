@@ -65,6 +65,21 @@ void Application::run()
                 .textureIndex = 0,
             },
     });
+
+    materials.push_back({
+        .ambientColor = {1.0f, 1.0f, 1.0f},
+        .diffuse = {1.0f, 1.0f, 1.0f},
+        .specular = {1.0f, 1.0f, 1.0f},
+        .shininess = 0.0f,
+    });
+
+    void *objectData = nullptr;
+    for (auto &frame: frames) {
+        vmaMapMemory(allocator, frame.data.materialBuffer.memory, &objectData);
+        gpuObject::Material *objectSSBI = (gpuObject::Material *)objectData;
+        for (unsigned i = 0; i < materials.size(); i++) { objectSSBI[i] = materials.at(i); }
+        vmaUnmapMemory(allocator, frame.data.materialBuffer.memory);
+    }
     while (!window.shouldClose()) {
         window.setTitle(uiRessources.sWindowTitle);
         auto tp1 = std::chrono::high_resolution_clock::now();
