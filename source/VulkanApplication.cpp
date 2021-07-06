@@ -2,6 +2,7 @@
 #include "Logger.hpp"
 #include "PipelineBuilder.hpp"
 #include "SwapChainSupportDetails.hpp"
+#include "types/Material.hpp"
 #include "types/vk_types.hpp"
 #include "vk_init.hpp"
 
@@ -12,6 +13,7 @@
 #include <tiny_obj_loader.h>
 
 #define MAX_OBJECT 10000
+#define MAX_MATERIALS 100
 
 VulkanApplication::VulkanApplication(): window("Vulkan", 800, 600)
 {
@@ -475,8 +477,15 @@ void VulkanApplication::createDescriptorSetLayout()
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
         .pImmutableSamplers = nullptr,
     };
+    VkDescriptorSetLayoutBinding materialBinding{
+        .binding = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .pImmutableSamplers = nullptr,
+    };
 
-    std::vector<VkDescriptorSetLayoutBinding> bindings = {uboLayoutBinding};
+    std::vector<VkDescriptorSetLayoutBinding> bindings = {uboLayoutBinding, materialBinding};
     VkDescriptorSetLayoutCreateInfo layoutInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
         .pNext = nullptr,
@@ -529,14 +538,25 @@ void VulkanApplication::createUniformBuffers()
         .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
-
+    VkBufferCreateInfo materialInfo{
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .pNext = nullptr,
+        .size = sizeof(gpuObject::Material) * MAX_MATERIALS,
+        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    };
+    AllocatedBuffer stagingMeterial{};
     for (auto &f: frames) {
+        VK_TRY(vmaCreateBuffer(allocator, &materialInfo, &allocInfo, &f.data.materialBuffer.buffer,
+                               &f.data.materialBuffer.memory, nullptr));
         VK_TRY(vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &f.data.uniformBuffers.buffer,
                                &f.data.uniformBuffers.memory, nullptr));
     }
+    vmaDestroyBuffer(allocator, stagingMeterial.buffer, stagingMeterial.memory);
     swapchainDeletionQueue.push([&]() {
         for (auto &f: frames) {
             vmaDestroyBuffer(allocator, f.data.uniformBuffers.buffer, f.data.uniformBuffers.memory);
+            vmaDestroyBuffer(allocator, f.data.materialBuffer.buffer, f.data.materialBuffer.memory);
         }
     });
 }
@@ -578,6 +598,11 @@ void VulkanApplication::createDescriptorSets()
             .offset = 0,
             .range = sizeof(gpuObject::UniformBufferObject) * MAX_OBJECT,
         };
+        VkDescriptorBufferInfo materialInfo{
+            .buffer = f.data.materialBuffer.buffer,
+            .offset = 0,
+            .range = sizeof(gpuObject::Material) * 1,
+        };
         std::vector<VkWriteDescriptorSet> descriptorWrites{
             {
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -588,6 +613,16 @@ void VulkanApplication::createDescriptorSets()
                 .descriptorCount = 1,
                 .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 .pBufferInfo = &bufferInfo,
+            },
+            {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .pNext = nullptr,
+                .dstSet = f.data.objectDescriptor,
+                .dstBinding = 1,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                .pBufferInfo = &materialInfo,
             },
         };
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0,

@@ -4,10 +4,13 @@
 #include <optional>
 #include <vulkan/vulkan.h>
 
+namespace gpuObject
+{
 struct Material {
-    std::optional<VkDescriptorSet> textureSet;
     glm::vec3 ambientColor;
     glm::vec3 diffuse;
     glm::vec3 specular;
     float shininess;
 };
+
+}    // namespace gpuObject

@@ -6,6 +6,8 @@ layout(location = 0) in vec3 fragColor;
 layout(location = 1) in vec2 fragTextCoords;
 layout(location = 2) flat in uint textureIndex;
 
+layout(location = 0) out vec4 outColor;
+
 layout (push_constant) uniform constants {
     vec4 position;
 	mat4 viewproj;
@@ -13,7 +15,17 @@ layout (push_constant) uniform constants {
 
 layout(set = 1, binding = 0) uniform sampler2D texSampler[];
 
-layout(location = 0) out vec4 outColor;
+
+struct Material {
+    vec3 ambientColor;
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+};
+
+layout (std140, set = 0, binding = 1) readonly buffer ObjectMaterials {
+    Material materials[];
+} objectMaterials;
 
 void main() {
     outColor = texture(texSampler[textureIndex], fragTextCoords);

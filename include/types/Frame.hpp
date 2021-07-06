@@ -7,6 +7,7 @@
 
 struct FrameData {
     AllocatedBuffer uniformBuffers = {};
+    AllocatedBuffer materialBuffer = {};
     VkDescriptorSet objectDescriptor = VK_NULL_HANDLE;
 };
 
