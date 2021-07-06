@@ -10,7 +10,7 @@
 #include <glm/gtx/string_cast.hpp>
 #include <imgui.h>
 
-Application::Application()
+Application::Application(): camera(glm::vec3(0.0f, 2.0f, 0.0f))
 {
     window.setUserPointer(this);
     window.captureCursor(true);
@@ -27,15 +27,29 @@ void Application::run()
     float fElapsedTime = 0;
 
     sceneModels.push_back({
+        .meshID = "plane",
+        .ubo =
+            {
+                .transform =
+                    {
+                        .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(0.0f, 0.0f, 0.0f)),
+                        .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+                        .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(50.0f)),
+                    },
+                .textureIndex = 0,
+            },
+    });
+    sceneModels.push_back({
         .meshID = "viking_room",
         .ubo =
             {
                 .transform =
                     {
-                        .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(10.0f, -0.6f, 0.0f)),
+                        .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(10.0f, 0.0f, 0.0f)),
                         .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
                         .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f)),
                     },
+                .textureIndex = 1,
             },
     });
     sceneModels.push_back({
@@ -48,6 +62,7 @@ void Application::run()
                         .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
                         .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f)),
                     },
+                .textureIndex = 0,
             },
     });
     while (!window.shouldClose()) {
@@ -133,6 +148,9 @@ void Application::drawFrame()
     };
     auto gpuCamera = camera.getGPUCameraData();
     VK_TRY(vkBeginCommandBuffer(cmd, &beginInfo));
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &frame.data.objectDescriptor, 0,
+                            nullptr);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texturesSet, 0, nullptr);
     vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                        sizeof(gpuCamera), &gpuCamera);
     vkCmdBeginRenderPass(cmd, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -146,10 +164,6 @@ void Application::drawFrame()
 
             vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
             vkCmdBindIndexBuffer(cmd, mesh.meshBuffer.buffer, mesh.indicesOffset, VK_INDEX_TYPE_UINT32);
-            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
-                                    &frame.data.objectDescriptor, 0, nullptr);
-            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texturesSet, 0,
-                                    nullptr);
 
             vkCmdDrawIndexed(cmd, mesh.indicesSize, 1, 0, 0, i);
         }
