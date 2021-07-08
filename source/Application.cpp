@@ -34,9 +34,9 @@ void Application::run()
                     {
                         .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(0.0f, 0.0f, 0.0f)),
                         .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
-                        .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(50.0f)),
+                        .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(1.0f)),
                     },
-                .textureIndex = 0,
+                .textureIndex = 2,
             },
     });
     sceneModels.push_back({
