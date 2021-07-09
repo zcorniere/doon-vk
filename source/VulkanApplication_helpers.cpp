@@ -142,45 +142,44 @@ void VulkanApplication::transitionImageLayout(VkImage &image, VkFormat format, V
     });
 }
 
+AllocatedBuffer VulkanApplication::createBuffer(uint32_t allocSize, VkBufferUsageFlags usage,
+                                                VmaMemoryUsage memoryUsage)
+{
+    VkBufferCreateInfo bufferInfo{
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .size = allocSize,
+        .usage = usage,
+    };
+    VmaAllocationCreateInfo vmaallocInfo{
+        .usage = memoryUsage,
+    };
+
+    AllocatedBuffer newBuffer;
+    VK_TRY(vmaCreateBuffer(allocator, &bufferInfo, &vmaallocInfo, &newBuffer.buffer, &newBuffer.memory, nullptr));
+    return newBuffer;
+}
+
 GPUMesh VulkanApplication::uploadMesh(const CPUMesh &mesh)
 {
     VkDeviceSize verticesSize = sizeof(mesh.verticies[0]) * mesh.verticies.size();
     VkDeviceSize indicesSize = sizeof(mesh.indices[0]) * mesh.indices.size();
     VkDeviceSize totalSize = verticesSize + indicesSize;
 
-    VkBufferCreateInfo stagingBufferInfo{
-        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .pNext = nullptr,
-        .size = totalSize,
-        .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-    };
-    VmaAllocationCreateInfo stagingAllocInfo{
-        .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
-    };
-    VkBufferCreateInfo meshBufferInfo{
-        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .pNext = nullptr,
-        .size = totalSize,
-        .usage =
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-    };
-    VmaAllocationCreateInfo meshAllocInfo{
-        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-    };
-
     GPUMesh gmesh{
         .verticiesOffset = 0,
-        .verticiesSize = mesh.verticies.size(),
-        .indicesOffset = verticesSize,
-        .indicesSize = mesh.indices.size(),
+        .verticiesSize = static_cast<uint32_t>(mesh.verticies.size()),
+        .indicesOffset = static_cast<uint32_t>(verticesSize),
+        .indicesSize = static_cast<uint32_t>(mesh.indices.size()),
     };
-    AllocatedBuffer stagingBuffer{};
-    VK_TRY(vmaCreateBuffer(allocator, &stagingBufferInfo, &stagingAllocInfo, &stagingBuffer.buffer,
-                           &stagingBuffer.memory, nullptr));
-    VK_TRY(vmaCreateBuffer(allocator, &meshBufferInfo, &meshAllocInfo, &gmesh.meshBuffer.buffer,
-                           &gmesh.meshBuffer.memory, nullptr));
+    AllocatedBuffer stagingBuffer =
+        createBuffer(totalSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+    gmesh.meshBuffer = createBuffer(totalSize,
+                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                                        VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                    VMA_MEMORY_USAGE_GPU_ONLY);
 
     void *mapped = nullptr;
     vmaMapMemory(allocator, stagingBuffer.memory, &mapped);

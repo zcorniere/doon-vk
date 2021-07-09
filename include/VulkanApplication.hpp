@@ -43,6 +43,9 @@ public:
     ~VulkanApplication();
     void init();
     void recreateSwapchain();
+    bool framebufferResized = false;
+
+protected:
     GPUMesh uploadMesh(const CPUMesh &mesh);
 
     template <typename T>
@@ -63,7 +66,8 @@ public:
         std::memcpy(mapped, data, size);
         vmaUnmapMemory(allocator, buffer.memory);
     }
-    bool framebufferResized = false;
+    AllocatedBuffer createBuffer(uint32_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+    void immediateCommand(std::function<void(VkCommandBuffer &)> &&);
 
 private:
     static std::vector<const char *> getRequiredExtensions(bool bEnableValidationLayers = false);
@@ -100,10 +104,8 @@ private:
     void createDepthResources();
     void createColorResources();
     void createImgui();
-
     void copyBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, VkDeviceSize &size);
     void copyBufferToImage(const VkBuffer &srcBuffer, VkImage &dstBuffer, uint32_t width, uint32_t height);
-    void immediateCommand(std::function<void(VkCommandBuffer &)> &&);
     void transitionImageLayout(VkImage &image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
                                uint32_t mipLevels = 1);
     void generateMipmaps(VkImage &image, VkFormat imageFormat, uint32_t texWidth, uint32_t texHeight,

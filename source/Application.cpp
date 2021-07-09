@@ -183,7 +183,6 @@ void Application::drawFrame()
             vkCmdDrawIndexed(cmd, mesh.indicesSize, 1, 0, 0, i);
         }
     }
-    ImGui::Render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
     vkCmdEndRenderPass(cmd);
     VK_TRY(vkEndCommandBuffer(cmd));
@@ -274,6 +273,7 @@ void Application::drawImgui()
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
                 ImGui::GetIO().Framerate);
     ImGui::End();
+    ImGui::Render();
 }
 
 void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, int)

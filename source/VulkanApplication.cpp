@@ -404,7 +404,7 @@ void VulkanApplication::createSyncObjects()
 
     mainDeletionQueue.push([&]() {
         vkDestroyFence(device, uploadContext.uploadFence, nullptr);
-        for (const auto f: frames) {
+        for (auto &f: frames) {
             vkDestroyFence(device, f.inFlightFences, nullptr);
             vkDestroySemaphore(device, f.renderFinishedSemaphore, nullptr);
             vkDestroySemaphore(device, f.imageAvailableSemaphore, nullptr);
@@ -528,31 +528,12 @@ void VulkanApplication::createTextureDescriptorSetLayout()
 
 void VulkanApplication::createUniformBuffers()
 {
-    VmaAllocationCreateInfo allocInfo{
-        .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
-    };
-    VkBufferCreateInfo bufferInfo{
-        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .pNext = nullptr,
-        .size = sizeof(gpuObject::UniformBufferObject) * MAX_OBJECT,
-        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-    };
-    VkBufferCreateInfo materialInfo{
-        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .pNext = nullptr,
-        .size = sizeof(gpuObject::Material) * MAX_MATERIALS,
-        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-    };
-    AllocatedBuffer stagingMeterial{};
     for (auto &f: frames) {
-        VK_TRY(vmaCreateBuffer(allocator, &materialInfo, &allocInfo, &f.data.materialBuffer.buffer,
-                               &f.data.materialBuffer.memory, nullptr));
-        VK_TRY(vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &f.data.uniformBuffers.buffer,
-                               &f.data.uniformBuffers.memory, nullptr));
+        f.data.uniformBuffers = createBuffer(sizeof(gpuObject::UniformBufferObject) * MAX_OBJECT,
+                                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+        f.data.materialBuffer = createBuffer(sizeof(gpuObject::Material) * MAX_MATERIALS,
+                                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
-    vmaDestroyBuffer(allocator, stagingMeterial.buffer, stagingMeterial.memory);
     swapchainDeletionQueue.push([&]() {
         for (auto &f: frames) {
             vmaDestroyBuffer(allocator, f.data.uniformBuffers.buffer, f.data.uniformBuffers.memory);
@@ -680,19 +661,8 @@ void VulkanApplication::loadTextures()
 
         if (!pixels) throw std::runtime_error("failed to load texture image");
 
-        VkBufferCreateInfo stagingBufferInfo{
-            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-            .pNext = nullptr,
-            .size = imageSize,
-            .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-        };
-        VmaAllocationCreateInfo stagingAllocInfo{
-            .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
-        };
         AllocatedBuffer stagingBuffer{};
-        VK_TRY(vmaCreateBuffer(allocator, &stagingBufferInfo, &stagingAllocInfo, &stagingBuffer.buffer,
-                               &stagingBuffer.memory, nullptr));
+        stagingBuffer = createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
         copyBuffer(stagingBuffer, pixels, imageSize);
         stbi_image_free(pixels);
 
