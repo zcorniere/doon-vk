@@ -9,10 +9,9 @@
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <set>
-#include <stb_image.h>
-#include <tiny_obj_loader.h>
 
-#define MAX_OBJECT 10000
+#define MAX_OBJECT 1000
+#define MAX_COMMANDS 100
 #define MAX_MATERIALS 100
 
 VulkanApplication::VulkanApplication(): window("Vulkan", 800, 600)
@@ -412,62 +411,6 @@ void VulkanApplication::createSyncObjects()
     });
 }
 
-void VulkanApplication::loadModel()
-{
-    for (auto &file: std::filesystem::directory_iterator("../models")) {
-        if (file.path().extension() != ".obj") continue;
-        logger->info("LOADING") << "Loading object: " << file.path();
-        LOGGER_ENDL;
-
-        CPUMesh mesh{};
-        tinyobj::attrib_t attrib;
-        std::vector<tinyobj::shape_t> shapes;
-        std::vector<tinyobj::material_t> materials;
-        std::string warn, err;
-
-        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, file.path().c_str(), nullptr)) {
-            if (!warn.empty()) {
-                logger->warn("LOADING_OBJ") << warn;
-                LOGGER_ENDL;
-            }
-            if (!err.empty()) {
-                logger->err("LOADING_OBJ") << err;
-                LOGGER_ENDL;
-                throw std::runtime_error("Error while loading obj file");
-            }
-        }
-
-        std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-
-        for (const auto &shape: shapes) {
-            for (const auto &index: shape.mesh.indices) {
-                Vertex vertex{
-                    .pos =
-                        {
-                            attrib.vertices[3 * index.vertex_index + 0],
-                            attrib.vertices[3 * index.vertex_index + 1],
-                            attrib.vertices[3 * index.vertex_index + 2],
-                        },
-                    .color = {1.0f, 1.0f, 1.0f},
-                    .texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
-                                 1.0f - attrib.texcoords[2 * index.texcoord_index + 1]},
-                };
-
-                if (!uniqueVertices.contains(vertex)) {
-                    uniqueVertices[vertex] = mesh.verticies.size();
-                    mesh.verticies.push_back(vertex);
-                }
-
-                mesh.indices.push_back(uniqueVertices.at(vertex));
-            }
-        }
-        loadedMeshes[file.path().stem()] = uploadMesh(mesh);
-    }
-    mainDeletionQueue.push([=]() {
-        for (auto &[_, i]: loadedMeshes) { vmaDestroyBuffer(allocator, i.meshBuffer.buffer, i.meshBuffer.memory); }
-    });
-}
-
 void VulkanApplication::createDescriptorSetLayout()
 {
     VkDescriptorSetLayoutBinding uboLayoutBinding{
@@ -648,69 +591,6 @@ void VulkanApplication::createTextureDescriptorSets()
         .pImageInfo = imagesInfos.data(),
     };
     vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
-}
-
-void VulkanApplication::loadTextures()
-{
-    for (auto &f: std::filesystem::directory_iterator("../textures")) {
-        logger->info("LOADING") << "Loading texture: " << f.path();
-        LOGGER_ENDL;
-        int texWidth, texHeight, texChannels;
-        stbi_uc *pixels = stbi_load(f.path().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-        VkDeviceSize imageSize = texWidth * texHeight * 4;
-
-        if (!pixels) throw std::runtime_error("failed to load texture image");
-
-        AllocatedBuffer stagingBuffer{};
-        stagingBuffer = createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-        copyBuffer(stagingBuffer, pixels, imageSize);
-        stbi_image_free(pixels);
-
-        mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
-        AllocatedImage image{};
-        VkImageCreateInfo imageInfo{
-            .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-            .pNext = nullptr,
-            .flags = 0,
-            .imageType = VK_IMAGE_TYPE_2D,
-            .format = VK_FORMAT_R8G8B8A8_SRGB,
-            .extent =
-                {
-                    .width = static_cast<uint32_t>(texWidth),
-                    .height = static_cast<uint32_t>(texHeight),
-                    .depth = 1,
-                },
-            .mipLevels = mipLevels,
-            .arrayLayers = 1,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .tiling = VK_IMAGE_TILING_OPTIMAL,
-            .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        };
-        VmaAllocationCreateInfo allocInfo{
-            .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-        };
-        VK_TRY(vmaCreateImage(allocator, &imageInfo, &allocInfo, &image.image, &image.memory, nullptr));
-        auto createInfo = vk_init::populateVkImageViewCreateInfo(image.image, VK_FORMAT_R8G8B8A8_SRGB, mipLevels);
-        VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &image.imageView));
-
-        transitionImageLayout(image.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
-                              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels);
-        copyBufferToImage(stagingBuffer.buffer, image.image, static_cast<uint32_t>(texWidth),
-                          static_cast<uint32_t>(texHeight));
-        // transitionImageLayout(image.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        //                      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        vmaDestroyBuffer(allocator, stagingBuffer.buffer, stagingBuffer.memory);
-        generateMipmaps(image.image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
-        loadedTextures.insert({f.path().stem(), std::move(image)});
-    }
-    mainDeletionQueue.push([&]() {
-        for (auto &[_, p]: loadedTextures) {
-            vkDestroyImageView(device, p.imageView, nullptr);
-            vmaDestroyImage(allocator, p.image, p.memory);
-        }
-    });
 }
 
 void VulkanApplication::createTextureSampler()

@@ -43,31 +43,24 @@ public:
     ~VulkanApplication();
     void init();
     void recreateSwapchain();
-    bool framebufferResized = false;
+    virtual void loadModel() = 0;
+    virtual void loadTextures() = 0;
 
 protected:
+    template <typename T>
+    void copyBuffer(AllocatedBuffer &buffer, std::vector<T> data);
+    template <typename T>
+    void copyBuffer(AllocatedBuffer &buffer, T *data, size_t size);
+    void copyBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, VkDeviceSize &size);
+
     GPUMesh uploadMesh(const CPUMesh &mesh);
-
-    template <typename T>
-    void copyBuffer(AllocatedBuffer &buffer, std::vector<T> data)
-    {
-        VkDeviceSize size = sizeof(data[0]) * data.size();
-        void *mapped = nullptr;
-        vmaMapMemory(allocator, buffer.memory, &mapped);
-        std::memcpy(mapped, data.data(), size);
-        vmaUnmapMemory(allocator, buffer.memory);
-    }
-
-    template <typename T>
-    void copyBuffer(AllocatedBuffer &buffer, T *data, size_t size)
-    {
-        void *mapped = nullptr;
-        vmaMapMemory(allocator, buffer.memory, &mapped);
-        std::memcpy(mapped, data, size);
-        vmaUnmapMemory(allocator, buffer.memory);
-    }
     AllocatedBuffer createBuffer(uint32_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
     void immediateCommand(std::function<void(VkCommandBuffer &)> &&);
+    void copyBufferToImage(const VkBuffer &srcBuffer, VkImage &dstBuffer, uint32_t width, uint32_t height);
+    void transitionImageLayout(VkImage &image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
+                               uint32_t mipLevels = 1);
+    void generateMipmaps(VkImage &image, VkFormat imageFormat, uint32_t texWidth, uint32_t texHeight,
+                         uint32_t mipLevel);
 
 private:
     static std::vector<const char *> getRequiredExtensions(bool bEnableValidationLayers = false);
@@ -92,24 +85,19 @@ private:
     void createCommandPool();
     void createCommandBuffers();
     void createSyncObjects();
-    void loadModel();
     void createDescriptorSetLayout();
     void createTextureDescriptorSetLayout();
     void createUniformBuffers();
     void createDescriptorPool();
     void createDescriptorSets();
     void createTextureDescriptorSets();
-    void loadTextures();
     void createTextureSampler();
     void createDepthResources();
     void createColorResources();
     void createImgui();
-    void copyBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, VkDeviceSize &size);
-    void copyBufferToImage(const VkBuffer &srcBuffer, VkImage &dstBuffer, uint32_t width, uint32_t height);
-    void transitionImageLayout(VkImage &image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
-                               uint32_t mipLevels = 1);
-    void generateMipmaps(VkImage &image, VkFormat imageFormat, uint32_t texWidth, uint32_t texHeight,
-                         uint32_t mipLevel);
+
+public:
+    bool framebufferResized = false;
 
 protected:
     CreationParameters creationParameters = {};
@@ -174,3 +162,22 @@ private:
     DeletionQueue mainDeletionQueue;
     DeletionQueue swapchainDeletionQueue;
 };
+
+template <typename T>
+void VulkanApplication::copyBuffer(AllocatedBuffer &buffer, T *data, size_t size)
+{
+    void *mapped = nullptr;
+    vmaMapMemory(allocator, buffer.memory, &mapped);
+    std::memcpy(mapped, data, size);
+    vmaUnmapMemory(allocator, buffer.memory);
+}
+
+template <typename T>
+void VulkanApplication::copyBuffer(AllocatedBuffer &buffer, std::vector<T> data)
+{
+    VkDeviceSize size = sizeof(data[0]) * data.size();
+    void *mapped = nullptr;
+    vmaMapMemory(allocator, buffer.memory, &mapped);
+    std::memcpy(mapped, data.data(), size);
+    vmaUnmapMemory(allocator, buffer.memory);
+}

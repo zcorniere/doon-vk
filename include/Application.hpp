@@ -13,6 +13,8 @@ public:
     ~Application();
 
     void run();
+    void loadModel() final;
+    void loadTextures() final;
 
 public:
     double lastX = 400;
@@ -28,6 +30,7 @@ private:
     static void cursor_callback(GLFWwindow *win, double xpos, double ypos);
 
 private:
+    DeletionQueue applicationDeletionQueue;
     struct {
         char sWindowTitle[WINDOW_TITLE_MAX_SIZE] = "Vulkan";
         bool bShowFpsInTitle = false;
