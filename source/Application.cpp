@@ -288,7 +288,11 @@ void Application::drawFrame()
         .clearValueCount = static_cast<uint32_t>(clearValues.size()),
         .pClearValues = clearValues.data(),
     };
-    auto gpuCamera = camera.getGPUCameraData();
+    auto gpuCamera = camera.getGPUCameraData(uiRessources.cameraParamettersOverride.fFOV,
+                                             uiRessources.cameraParamettersOverride.fAspectRatio[0] /
+                                                 uiRessources.cameraParamettersOverride.fAspectRatio[1],
+                                             uiRessources.cameraParamettersOverride.fCloseClippingPlane,
+                                             uiRessources.cameraParamettersOverride.fFarClippingPlane);
     VK_TRY(vkBeginCommandBuffer(cmd, &beginInfo));
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &frame.data.objectDescriptor, 0,
                             nullptr);
@@ -391,12 +395,19 @@ void Application::drawImgui()
             }
             ImGui::EndCombo();
         }
-        ImGui::Text("");
-        ImGui::Text("Camera position");
+    }
+    if (ImGui::CollapsingHeader("Camera")) {
+        ImGui::Text("Position");
         ImGui::InputFloat("X", &camera.position.x);
         ImGui::InputFloat("Y", &camera.position.y);
         ImGui::InputFloat("Z", &camera.position.x);
+        ImGui::SliderFloat("FOV", &uiRessources.cameraParamettersOverride.fFOV, 0.f, 180.f);
+        ImGui::InputFloat("Close clipping plane", &uiRessources.cameraParamettersOverride.fCloseClippingPlane);
+        ImGui::InputFloat("Far clipping plane", &uiRessources.cameraParamettersOverride.fFarClippingPlane);
+        ImGui::Text("Aspect ratio");
+        ImGui::SliderFloat2("", uiRessources.cameraParamettersOverride.fAspectRatio, 0.f, 2048.f, "", 1.f);
     }
+
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
                 ImGui::GetIO().Framerate);
     ImGui::End();

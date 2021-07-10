@@ -22,9 +22,10 @@ Camera::Camera(float posX, float posY, float posZ, float upX, float upY, float u
 
 glm::mat4 Camera::getViewMatrix() const { return glm::lookAt(position, position + front, up); }
 
-Camera::GPUCameraData Camera::getGPUCameraData() const
+Camera::GPUCameraData Camera::getGPUCameraData(float fFOV, float fAspectRatio, float fCloseClippingPlane,
+                                               float fFarClippingPlane) const
 {
-    auto projection = glm::perspective(glm::radians(70.f), 1700.f / 900.f, 0.1f, MAX_PROJECTION_LIMIT);
+    auto projection = glm::perspective(glm::radians(fFOV), fAspectRatio, fCloseClippingPlane, fFarClippingPlane);
     projection[1][1] *= -1;
     auto view = this->getViewMatrix();
     GPUCameraData data{

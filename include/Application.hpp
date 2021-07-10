@@ -32,6 +32,12 @@ private:
 private:
     DeletionQueue applicationDeletionQueue;
     struct {
+        struct {
+            float fFOV = 70.f;
+            float fAspectRatio[2] = {1700.f, 900.f};
+            float fCloseClippingPlane = 0.1;
+            float fFarClippingPlane = MAX_PROJECTION_LIMIT;
+        } cameraParamettersOverride;
         char sWindowTitle[WINDOW_TITLE_MAX_SIZE] = "Vulkan";
         bool bShowFpsInTitle = false;
         bool bWireFrameMode = false;

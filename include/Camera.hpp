@@ -26,7 +26,9 @@ public:
     Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch);
 
     glm::mat4 getViewMatrix() const;
-    GPUCameraData getGPUCameraData() const;
+    GPUCameraData getGPUCameraData(float fFOV = 70.f, float fAspectRatio = 1700.f / 900.f,
+                                   float fCloseClippingPlane = 0.1,
+                                   float fFarClippingPlane = MAX_PROJECTION_LIMIT) const;
 
     void processKeyboard(Movement direction, float fElapsedTime);
     void processMouseMovement(float xoffset, float yoffset, bool bConstrainPitch = true);
