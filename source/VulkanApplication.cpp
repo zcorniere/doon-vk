@@ -525,7 +525,7 @@ void VulkanApplication::createDescriptorSets()
         VkDescriptorBufferInfo materialInfo{
             .buffer = f.data.materialBuffer.buffer,
             .offset = 0,
-            .range = sizeof(gpuObject::Material) * 1,
+            .range = sizeof(gpuObject::Material) * MAX_MATERIALS,
         };
         std::vector<VkWriteDescriptorSet> descriptorWrites{
             {

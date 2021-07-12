@@ -66,9 +66,19 @@ void Application::loadModel()
                             attrib.vertices[3 * index.vertex_index + 1],
                             attrib.vertices[3 * index.vertex_index + 2],
                         },
+                    .normal =
+                        {
+                            attrib.normals[3 * index.normal_index + 0],
+                            attrib.normals[3 * index.normal_index + 1],
+                            attrib.normals[3 * index.normal_index + 2],
+                        },
+
                     .color = {1.0f, 1.0f, 1.0f},
-                    .texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
-                                 1.0f - attrib.texcoords[2 * index.texcoord_index + 1]},
+                    .texCoord =
+                        {
+                            attrib.texcoords[2 * index.texcoord_index + 0],
+                            1.0f - attrib.texcoords[2 * index.texcoord_index + 1],
+                        },
                 };
 
                 if (!uniqueVertices.contains(vertex)) {
@@ -163,18 +173,18 @@ void Application::run()
                         .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
                         .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(1.0f)),
                     },
-                .textureIndex = 2,
+                .textureIndex = 3,
             },
     });
     sceneModels.push_back({
-        .meshID = "viking_room",
+        .meshID = "ferdelance",
         .ubo =
             {
                 .transform =
                     {
-                        .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(10.0f, 0.0f, 0.0f)),
-                        .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
-                        .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f)),
+                        .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(0.0f, 0.0f, 75.0f)),
+                        .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+                        .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(0.5f)),
                     },
                 .textureIndex = 1,
             },
@@ -185,7 +195,7 @@ void Application::run()
             {
                 .transform =
                     {
-                        .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(-10.0f, 1.f, 0.0f)),
+                        .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(-10.0f, 2.f, 0.0f)),
                         .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
                         .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f)),
                     },
@@ -194,10 +204,9 @@ void Application::run()
     });
 
     materials.push_back({
-        .ambientColor = {1.0f, 1.0f, 1.0f},
-        .diffuse = {1.0f, 1.0f, 1.0f},
-        .specular = {1.0f, 1.0f, 1.0f},
-        .shininess = 0.0f,
+        .ambientColor = {1.0f, 1.0f, 1.0f, 1.0f},
+        .diffuse = {1.0f, 1.0f, 1.0f, 1.0f},
+        .specular = {1.0f, 1.0f, 1.0f, 1.0f},
     });
 
     void *objectData = nullptr;
@@ -294,6 +303,7 @@ void Application::drawFrame()
                                              uiRessources.cameraParamettersOverride.fCloseClippingPlane,
                                              uiRessources.cameraParamettersOverride.fFarClippingPlane);
     VK_TRY(vkBeginCommandBuffer(cmd, &beginInfo));
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &frame.data.objectDescriptor, 0,
                             nullptr);
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texturesSet, 0, nullptr);
@@ -301,8 +311,6 @@ void Application::drawFrame()
                        sizeof(gpuCamera), &gpuCamera);
     vkCmdBeginRenderPass(cmd, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     {
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-
         for (unsigned i = 0; i < sceneModels.size(); i++) {
             const auto &mesh = loadedMeshes[sceneModels.at(i).meshID];
             VkBuffer vertexBuffers[] = {mesh.meshBuffer.buffer};

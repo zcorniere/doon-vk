@@ -7,8 +7,10 @@ layout(location = 2) in vec3 inColor;
 layout(location = 3) in vec2 inTextCoords;
 
 layout(location = 0) out vec3 fragColor;
-layout(location = 1) out vec2 fragTextCoords;
-layout(location = 2) out uint textureIndex;
+layout(location = 1) out vec3 fragPosition;
+layout(location = 2) out vec3 fragNormal;
+layout(location = 3) out vec2 fragTextCoords;
+layout(location = 4) out uint textureIndex;
 
 struct Transform {
     mat4 translation;
@@ -20,7 +22,6 @@ struct UniformBufferObject {
     Transform transform;
     uint textureIndex;
 };
-
 
 layout (std140, set = 0, binding = 0) readonly buffer ObjectBuffer {
     UniformBufferObject objects[];
@@ -34,8 +35,13 @@ layout (push_constant) uniform constants {
 
 void main() {
     Transform ubo = objectBuffer.objects[gl_BaseInstance].transform;
-    gl_Position = cameraData.viewproj * (ubo.translation * ubo.rotation  * ubo.scale) * vec4(inPosition, 1.0);
+    mat4 modelMatrix = ubo.translation * ubo.rotation  * ubo.scale;
+
+    gl_Position = cameraData.viewproj * modelMatrix * vec4(inPosition, 1.0);
+
     fragColor = inColor;
+    fragPosition = vec3(modelMatrix * vec4(inPosition, 1.0));
+    fragNormal = mat3(transpose(inverse(modelMatrix))) * inNormal;
     fragTextCoords = inTextCoords;
     textureIndex = objectBuffer.objects[gl_BaseInstance].textureIndex;
 }

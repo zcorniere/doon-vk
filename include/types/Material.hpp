@@ -7,10 +7,9 @@
 namespace gpuObject
 {
 struct Material {
-    glm::vec3 ambientColor;
-    glm::vec3 diffuse;
-    glm::vec3 specular;
-    float shininess;
+    glm::vec4 ambientColor;
+    glm::vec4 diffuse;
+    glm::vec4 specular;
 };
 
 }    // namespace gpuObject
