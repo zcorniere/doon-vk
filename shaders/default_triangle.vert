@@ -11,6 +11,7 @@ layout(location = 1) out vec3 fragPosition;
 layout(location = 2) out vec3 fragNormal;
 layout(location = 3) out vec2 fragTextCoords;
 layout(location = 4) out uint textureIndex;
+layout(location = 5) out uint materialIndex;
 
 struct Transform {
     mat4 translation;
@@ -21,6 +22,7 @@ struct Transform {
 struct UniformBufferObject {
     Transform transform;
     uint textureIndex;
+    uint materialIndex;
 };
 
 layout (std140, set = 0, binding = 0) readonly buffer ObjectBuffer {
@@ -44,4 +46,5 @@ void main() {
     fragNormal = mat3(transpose(inverse(modelMatrix))) * inNormal;
     fragTextCoords = inTextCoords;
     textureIndex = objectBuffer.objects[gl_BaseInstance].textureIndex;
+    materialIndex = objectBuffer.objects[gl_BaseInstance].materialIndex;
 }

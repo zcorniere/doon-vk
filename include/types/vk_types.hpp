@@ -14,6 +14,7 @@ struct Transform {
 struct UniformBufferObject {
     Transform transform;
     alignas(16) uint32_t textureIndex;
+    uint32_t materialIndex = 0;
 };
 
 }    // namespace gpuObject

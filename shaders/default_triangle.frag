@@ -7,6 +7,8 @@ layout(location = 1) in vec3 fragPosition;
 layout(location = 2) in vec3 fragNormal;
 layout(location = 3) in vec2 fragTextCoords;
 layout(location = 4) flat in uint textureIndex;
+layout(location = 5) flat in uint materialIndex;
+
 
 layout(location = 0) out vec4 outColor;
 
@@ -51,6 +53,6 @@ vec4 calculateLight(Material mat) {
 }
 
 void main() {
-    vec4 light = calculateLight(objectMaterials.materials[0]);
+    vec4 light = calculateLight(objectMaterials.materials[materialIndex]);
     outColor = light * texture(texSampler[textureIndex], fragTextCoords);
 }
