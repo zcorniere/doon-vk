@@ -19,6 +19,7 @@ public:
     uint32_t nbOfImage() const;
 
     constexpr const VkSwapchainKHR &getSwapchain() const { return swapChain; }
+    constexpr float getAspectRatio() const { return swapChainExtent.width / swapChainExtent.height; }
     constexpr VkImage &getSwapchainImage(const unsigned index) { return swapChainImages.at(index); }
     constexpr VkImageView &getSwapchainImageView(const unsigned index) { return swapChainImageViews.at(index); }
     constexpr const VkFormat &getSwapchainFormat() const { return swapChainImageFormat; }
