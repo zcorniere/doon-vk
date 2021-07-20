@@ -5,6 +5,8 @@ find_package(Vulkan REQUIRED)
 
 include(shaders/CMakeRule.txt)
 
+set(CC clang)
+set(CXX clang++)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -26,6 +28,7 @@ add_subdirectory(lib)
 add_executable(${PROJECT_NAME} source/main.cpp
                                source/Window.cpp
                                source/VulkanException.cpp
+                               source/VulkanLoader.cpp
                                source/VulkanApplication.cpp
                                source/VulkanApplication_helpers.cpp
                                source/VulkanApplication_static.cpp

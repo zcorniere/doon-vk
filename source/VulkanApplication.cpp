@@ -22,7 +22,7 @@ VulkanApplication::VulkanApplication(): window("Vulkan", 800, 600)
 
 VulkanApplication::~VulkanApplication()
 {
-    vkDeviceWaitIdle(device);
+    if (device != VK_NULL_HANDLE) vkDeviceWaitIdle(device);
     swapchain.destroy();
     swapchainDeletionQueue.flush();
     mainDeletionQueue.flush();
@@ -86,8 +86,7 @@ void VulkanApplication::initInstance()
         createInfo.ppEnabledLayerNames = validationLayers.data();
     }
 
-    VK_TRY(vkCreateInstance(&createInfo, nullptr, &instance));
-    mainDeletionQueue.push([&]() { vkDestroyInstance(instance, nullptr); });
+    this->createInstance(createInfo);
 }
 
 void VulkanApplication::initDebug()
@@ -95,17 +94,9 @@ void VulkanApplication::initDebug()
     if (!enableValidationLayers) return;
 
     auto debugInfo = vk_init::populateDebugUtilsMessengerCreateInfoEXT(&VulkanApplication::debugCallback);
-    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-    if (func != nullptr) {
-        VK_TRY(func(instance, &debugInfo, nullptr, &debugUtilsMessenger));
-    } else {
-        throw VulkanException("VK_ERROR_EXTENSION_NOT_PRESENT");
-    }
-    mainDeletionQueue.push([&]() {
-        auto func =
-            (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-        if (func != nullptr) { func(instance, debugUtilsMessenger, nullptr); }
-    });
+    VK_TRY(vkCreateDebugUtilsMessengerEXT(instance, &debugInfo, nullptr, &debugUtilsMessenger));
+
+    mainDeletionQueue.push([&]() { vkDestroyDebugUtilsMessengerEXT(instance, debugUtilsMessenger, nullptr); });
 }
 
 void VulkanApplication::pickPhysicalDevice()

@@ -25,13 +25,13 @@ Application::Application(): camera(glm::vec3(0.0f, 2.0f, 0.0f))
 
 Application::~Application()
 {
-    vkDeviceWaitIdle(device);
+    if (device != VK_NULL_HANDLE) vkDeviceWaitIdle(device);
     applicationDeletionQueue.flush();
 }
 
 void Application::loadModel()
 {
-    for (auto &file: std::filesystem::directory_iterator("../models")) {
+    for (const auto &file: std::filesystem::directory_iterator("../models")) {
         if (file.path().extension() != ".obj") continue;
         logger->info("LOADING") << "Loading object: " << file.path();
         LOGGER_ENDL;

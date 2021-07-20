@@ -4,6 +4,7 @@
 #include "DeletionQueue.hpp"
 #include "QueueFamilyIndices.hpp"
 #include "Swapchain.hpp"
+#include "VulkanLoader.hpp"
 #include "Window.hpp"
 #include "types/AllocatedBuffer.hpp"
 #include "types/CreationParameters.hpp"
@@ -18,7 +19,7 @@
 #include <stdexcept>
 #include <vector>
 #include <vk_mem_alloc.h>
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 const std::vector<const char *> validationLayers = {
     "VK_LAYER_KHRONOS_validation",
@@ -29,7 +30,7 @@ const std::vector<const char *> deviceExtensions = {
 
 constexpr uint8_t MAX_FRAME_FRAME_IN_FLIGHT = 2;
 
-class VulkanApplication
+class VulkanApplication : public VulkanLoader
 {
 public:
 #ifdef NDEBUG
@@ -62,16 +63,17 @@ protected:
                          uint32_t mipLevel);
 
 private:
-    static std::vector<const char *> getRequiredExtensions(bool bEnableValidationLayers = false);
     static bool checkValiationLayerSupport();
+    static std::vector<const char *> getRequiredExtensions(bool bEnableValidationLayers = false);
     static uint32_t debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT, VkDebugUtilsMessageTypeFlagsEXT,
                                   const VkDebugUtilsMessengerCallbackDataEXT *, void *);
-    static bool isDeviceSuitable(const VkPhysicalDevice &gpu, const VkSurfaceKHR &surface);
-    static bool checkDeviceExtensionSupport(const VkPhysicalDevice &device);
     static void framebufferResizeCallback(GLFWwindow *, int, int);
     static VkSampleCountFlagBits getMexUsableSampleCount(VkPhysicalDevice &physical_device);
 
 private:
+    bool isDeviceSuitable(const VkPhysicalDevice &gpu, const VkSurfaceKHR &surface);
+    bool checkDeviceExtensionSupport(const VkPhysicalDevice &device);
+
     void initInstance();
     void initDebug();
     void pickPhysicalDevice();
@@ -101,7 +103,6 @@ public:
 protected:
     CreationParameters creationParameters = {};
     Window window;
-    VkInstance instance = VK_NULL_HANDLE;
     VkDebugUtilsMessengerEXT debugUtilsMessenger = VK_NULL_HANDLE;
     VkPhysicalDevice physical_device = VK_NULL_HANDLE;
     VkSampleCountFlagBits maxMsaaSample = VK_SAMPLE_COUNT_1_BIT;
