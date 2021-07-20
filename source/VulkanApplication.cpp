@@ -110,12 +110,7 @@ void VulkanApplication::initDebug()
 
 void VulkanApplication::pickPhysicalDevice()
 {
-    uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
-    std::vector<VkPhysicalDevice> devices(deviceCount);
-    vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
-    if (devices.empty()) throw VulkanException("failed to find GPUs with Vulkan support");
-    for (const auto &device: devices) {
+    for (const auto &device: vk_utils::getPhysicalDevices(instance)) {
         if (isDeviceSuitable(device, surface)) {
             physical_device = device;
             maxMsaaSample = getMexUsableSampleCount(physical_device);

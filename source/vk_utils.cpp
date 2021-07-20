@@ -58,6 +58,16 @@ uint32_t findMemoryType(VkPhysicalDevice &physicalDevice, uint32_t typeFilter, V
     throw VulkanException("failed to find suitable memory type !");
 }
 
+std::vector<VkPhysicalDevice> getPhysicalDevices(VkInstance &instance)
+{
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+    if (devices.empty()) throw VulkanException("failed to find GPUs with Vulkan support");
+    return devices;
+}
+
 namespace tools
 {
     const std::string to_string(VkSampleCountFlagBits count)

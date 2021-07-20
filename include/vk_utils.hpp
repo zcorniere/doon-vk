@@ -33,6 +33,7 @@ bool isSwapchainInvalid(const VkResult result, const FailedValue... failedResult
         return false;
     }
 }
+std::vector<VkPhysicalDevice> getPhysicalDevices(VkInstance &instance);
 
 namespace tools
 {
