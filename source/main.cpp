@@ -14,6 +14,12 @@ int main()
 try {
     Application app;
 
+    app.init([&app]() {
+        app.loadModel();
+        app.loadTextures();
+        return true;
+    });
+
     app.run();
     return EXIT_SUCCESS;
 } catch (const VulkanException &se) {

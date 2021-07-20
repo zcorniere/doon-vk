@@ -41,10 +41,9 @@ public:
 public:
     VulkanApplication();
     ~VulkanApplication();
-    void init();
+
+    void init(std::function<bool()> &&loadingStage);
     void recreateSwapchain();
-    virtual void loadModel() = 0;
-    virtual void loadTextures() = 0;
 
 protected:
     template <typename T>
@@ -155,7 +154,6 @@ protected:
 
     // Depthbuffer
     AllocatedImage depthResources = {};
-
     AllocatedImage colorImage = {};
 
 private:

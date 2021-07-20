@@ -28,7 +28,7 @@ VulkanApplication::~VulkanApplication()
     mainDeletionQueue.flush();
 }
 
-void VulkanApplication::init()
+void VulkanApplication::init(std::function<bool()> &&loadingStage)
 {
     initInstance();
     initDebug();
@@ -48,17 +48,17 @@ void VulkanApplication::init()
     createColorResources();
     createDepthResources();
     createFramebuffers();
-
-    loadTextures();
-    loadModel();
-
-    createTextureSampler();
     createUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
+
+    createImgui();
+
+    if (!loadingStage()) { throw std::runtime_error("Loading stage failed !"); }
+
+    createTextureSampler();
     createTextureDescriptorSets();
     createCommandBuffers();
-    createImgui();
 }
 
 void VulkanApplication::initInstance()

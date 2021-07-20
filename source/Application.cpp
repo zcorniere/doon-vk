@@ -21,7 +21,6 @@ Application::Application(): camera(glm::vec3(0.0f, 2.0f, 0.0f))
     window.setKeyCallback(Application::keyboard_callback);
     window.setCursorPosCallback(Application::cursor_callback);
     window.setTitle(uiRessources.sWindowTitle);
-    this->VulkanApplication::init();
 }
 
 Application::~Application()

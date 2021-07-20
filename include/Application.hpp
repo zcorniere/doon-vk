@@ -13,8 +13,8 @@ public:
     ~Application();
 
     void run();
-    void loadModel() final;
-    void loadTextures() final;
+    void loadModel();
+    void loadTextures();
 
 public:
     double lastX = 400;
