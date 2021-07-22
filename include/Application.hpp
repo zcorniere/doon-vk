@@ -41,6 +41,7 @@ private:
         char sWindowTitle[WINDOW_TITLE_MAX_SIZE] = "Vulkan";
         bool bShowFpsInTitle = false;
         bool bWireFrameMode = false;
+        VkClearColorValue vClearColor = {{0.0f, 0.0f, 0.0f, 1.0f}};
     } uiRessources = {};
     Camera camera;
 

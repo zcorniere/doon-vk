@@ -275,7 +275,7 @@ void Application::drawFrame()
     };
 
     std::array<VkClearValue, 2> clearValues{};
-    clearValues.at(0).color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+    clearValues.at(0).color = uiRessources.vClearColor;
     clearValues.at(1).depthStencil = {1.0f, 0};
 
     void *objectData = nullptr;
@@ -371,6 +371,7 @@ void Application::drawImgui()
             snprintf(uiRessources.sWindowTitle, WINDOW_TITLE_MAX_SIZE, "%f", ImGui::GetIO().Framerate);
         }
         ImGui::Checkbox("Show fps in the tile", &uiRessources.bShowFpsInTitle);
+        ImGui::ColorEdit4("Clear color", uiRessources.vClearColor.float32);
     }
 
     if (ImGui::CollapsingHeader("Render")) {
