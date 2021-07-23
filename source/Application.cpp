@@ -302,9 +302,7 @@ void Application::drawFrame()
         .clearValueCount = static_cast<uint32_t>(clearValues.size()),
         .pClearValues = clearValues.data(),
     };
-    auto gpuCamera = player.getGPUCameraData(uiRessources.cameraParamettersOverride.fFOV,
-                                             uiRessources.cameraParamettersOverride.fAspectRatio[0] /
-                                                 uiRessources.cameraParamettersOverride.fAspectRatio[1],
+    auto gpuCamera = player.getGPUCameraData(uiRessources.cameraParamettersOverride.fFOV, swapchain.getAspectRatio(),
                                              uiRessources.cameraParamettersOverride.fCloseClippingPlane,
                                              uiRessources.cameraParamettersOverride.fFarClippingPlane);
     VK_TRY(vkBeginCommandBuffer(cmd, &beginInfo));
@@ -418,8 +416,6 @@ void Application::drawImgui()
         ImGui::SliderFloat("FOV", &uiRessources.cameraParamettersOverride.fFOV, 0.f, 180.f);
         ImGui::InputFloat("Close clipping plane", &uiRessources.cameraParamettersOverride.fCloseClippingPlane);
         ImGui::InputFloat("Far clipping plane", &uiRessources.cameraParamettersOverride.fFarClippingPlane);
-        ImGui::Text("Aspect ratio");
-        ImGui::SliderFloat2("", uiRessources.cameraParamettersOverride.fAspectRatio, 0.f, 2048.f, "", 1.f);
         ImGui::Checkbox("Flying cam ?", &uiRessources.cameraParamettersOverride.bFlyingCam);
         ImGui::SliderFloat("Gravity", &uiRessources.cameraParamettersOverride.fGravity, 0.0f, 20.f);
         ImGui::InputFloat("Jumping Height", &player.jumpHeight);
@@ -449,11 +445,7 @@ void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, i
                     }
                 } break;
                 case GLFW_KEY_LEFT_CONTROL: {
-                    LOGGER_DEBUG << "Multiplying the movement speed " << eng->player.movementSpeed;
-                    LOGGER_ENDL;
                     eng->player.movementSpeed *= 2;
-                    LOGGER_DEBUG << eng->player.movementSpeed;
-                    LOGGER_ENDL;
                 } break;
                 default: break;
             }
@@ -461,11 +453,7 @@ void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, i
         case GLFW_RELEASE: {
             switch (key) {
                 case GLFW_KEY_LEFT_CONTROL: {
-                    LOGGER_DEBUG << "Dividing the movement speed " << eng->player.movementSpeed;
-                    LOGGER_ENDL;
                     eng->player.movementSpeed /= 2;
-                    LOGGER_DEBUG << eng->player.movementSpeed;
-                    LOGGER_ENDL;
                 } break;
                 default: break;
             }

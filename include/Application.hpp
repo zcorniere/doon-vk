@@ -36,7 +36,6 @@ private:
     struct {
         struct {
             float fFOV = 70.f;
-            float fAspectRatio[2] = {1700.f, 900.f};
             float fCloseClippingPlane = 0.1;
             float fFarClippingPlane = MAX_PROJECTION_LIMIT;
             bool bFlyingCam = false;
@@ -48,9 +47,7 @@ private:
         VkClearColorValue vClearColor = {{0.0f, 0.0f, 0.0f, 1.0f}};
     } uiRessources = {};
     Player player;
-
     std::vector<RenderObject> sceneModels;
     std::vector<gpuObject::Material> materials;
-
     bool firstMouse = true;
 };
