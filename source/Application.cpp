@@ -14,7 +14,7 @@
 #include <stb_image.h>
 #include <tiny_obj_loader.h>
 
-Application::Application(): camera(glm::vec3(0.0f, 2.0f, 0.0f))
+Application::Application(): player()
 {
     window.setUserPointer(this);
     window.captureCursor(true);
@@ -221,14 +221,20 @@ void Application::run()
 
         window.pollEvent();
         if (!bInteractWithUi) {
-            if (window.isKeyPressed(GLFW_KEY_W)) camera.processKeyboard(Camera::FORWARD, fElapsedTime);
-            if (window.isKeyPressed(GLFW_KEY_S)) camera.processKeyboard(Camera::BACKWARD, fElapsedTime);
-            if (window.isKeyPressed(GLFW_KEY_D)) camera.processKeyboard(Camera::RIGHT, fElapsedTime);
-            if (window.isKeyPressed(GLFW_KEY_A)) camera.processKeyboard(Camera::LEFT, fElapsedTime);
-            if (window.isKeyPressed(GLFW_KEY_SPACE)) camera.processKeyboard(Camera::UP, fElapsedTime);
-            if (window.isKeyPressed(GLFW_KEY_LEFT_SHIFT)) camera.processKeyboard(Camera::DOWN, fElapsedTime);
+            if (window.isKeyPressed(GLFW_KEY_W)) player.processKeyboard(Camera::FORWARD);
+            if (window.isKeyPressed(GLFW_KEY_S)) player.processKeyboard(Camera::BACKWARD);
+            if (window.isKeyPressed(GLFW_KEY_D)) player.processKeyboard(Camera::RIGHT);
+            if (window.isKeyPressed(GLFW_KEY_A)) player.processKeyboard(Camera::LEFT);
+            if (window.isKeyPressed(GLFW_KEY_SPACE)) player.processKeyboard(Camera::UP);
+            if (window.isKeyPressed(GLFW_KEY_LEFT_SHIFT)) player.processKeyboard(Camera::DOWN);
         }
+
         drawImgui();
+        if (!uiRessources.cameraParamettersOverride.bFlyingCam) {
+            player.update(fElapsedTime, -uiRessources.cameraParamettersOverride.fGravity);
+        } else {
+            player.update(fElapsedTime, 0.0f);
+        }
         drawFrame();
         auto tp2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<float> elapsedTime(tp2 - tp1);
@@ -296,7 +302,7 @@ void Application::drawFrame()
         .clearValueCount = static_cast<uint32_t>(clearValues.size()),
         .pClearValues = clearValues.data(),
     };
-    auto gpuCamera = camera.getGPUCameraData(uiRessources.cameraParamettersOverride.fFOV,
+    auto gpuCamera = player.getGPUCameraData(uiRessources.cameraParamettersOverride.fFOV,
                                              uiRessources.cameraParamettersOverride.fAspectRatio[0] /
                                                  uiRessources.cameraParamettersOverride.fAspectRatio[1],
                                              uiRessources.cameraParamettersOverride.fCloseClippingPlane,
@@ -406,16 +412,16 @@ void Application::drawImgui()
     }
     if (ImGui::CollapsingHeader("Camera")) {
         ImGui::Text("Position");
-        ImGui::InputFloat("X", &camera.position.x);
-        ImGui::InputFloat("Y", &camera.position.y);
-        ImGui::InputFloat("Z", &camera.position.x);
+        ImGui::InputFloat("X", &player.position.x);
+        ImGui::InputFloat("Y", &player.position.y);
+        ImGui::InputFloat("Z", &player.position.x);
         ImGui::SliderFloat("FOV", &uiRessources.cameraParamettersOverride.fFOV, 0.f, 180.f);
         ImGui::InputFloat("Close clipping plane", &uiRessources.cameraParamettersOverride.fCloseClippingPlane);
         ImGui::InputFloat("Far clipping plane", &uiRessources.cameraParamettersOverride.fFarClippingPlane);
         ImGui::Text("Aspect ratio");
         ImGui::SliderFloat2("", uiRessources.cameraParamettersOverride.fAspectRatio, 0.f, 2048.f, "", 1.f);
+        ImGui::Checkbox("Flying cam ?", &uiRessources.cameraParamettersOverride.bFlyingCam);
     }
-
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
                 ImGui::GetIO().Framerate);
     ImGui::End();
@@ -427,11 +433,10 @@ void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, i
     auto *eng = (Application *)glfwGetWindowUserPointer(win);
 
     switch (action) {
-        case GLFW_REPEAT:
         case GLFW_PRESS: {
             switch (key) {
                 case GLFW_KEY_ESCAPE: glfwSetWindowShouldClose(win, true); break;
-                case GLFW_KEY_LEFT_ALT:
+                case GLFW_KEY_LEFT_ALT: {
                     if (eng->bInteractWithUi) {
                         eng->window.captureCursor(true);
                         eng->bInteractWithUi = false;
@@ -440,11 +445,30 @@ void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, i
                         eng->window.captureCursor(false);
                         eng->bInteractWithUi = true;
                     }
-                    break;
+                } break;
+                case GLFW_KEY_LEFT_CONTROL: {
+                    LOGGER_DEBUG << "Multiplying the movement speed " << eng->player.movementSpeed;
+                    LOGGER_ENDL;
+                    eng->player.movementSpeed *= 2;
+                    LOGGER_DEBUG << eng->player.movementSpeed;
+                    LOGGER_ENDL;
+                } break;
                 default: break;
             }
-            default: break;
-        }
+        } break;
+        case GLFW_RELEASE: {
+            switch (key) {
+                case GLFW_KEY_LEFT_CONTROL: {
+                    LOGGER_DEBUG << "Dividing the movement speed " << eng->player.movementSpeed;
+                    LOGGER_ENDL;
+                    eng->player.movementSpeed /= 2;
+                    LOGGER_DEBUG << eng->player.movementSpeed;
+                    LOGGER_ENDL;
+                } break;
+                default: break;
+            }
+        } break;
+        default: break;
     }
 }
 
@@ -463,5 +487,5 @@ void Application::cursor_callback(GLFWwindow *win, double xpos, double ypos)
 
     eng->lastX = xpos;
     eng->lastY = ypos;
-    eng->camera.processMouseMovement(xoffset, yoffset);
+    eng->player.processMouseMovement(xoffset, yoffset);
 }

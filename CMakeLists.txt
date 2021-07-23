@@ -37,6 +37,7 @@ add_executable(${PROJECT_NAME} source/main.cpp
                                source/PipelineBuilder.cpp
                                source/Logger.cpp
                                source/Camera.cpp
+                               source/Player.cpp
                                source/Swapchain.cpp
                                source/Application.cpp
 )
@@ -45,6 +46,7 @@ add_shader(${PROJECT_NAME} default_triangle.vert)
 add_shader(${PROJECT_NAME} default_triangle.frag)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
+  -DGLM_FORCE_INLINE
   -DGLM_FORCE_RADIANS
   -DGLM_FORCE_DEPTH_ZERO_TO_ONE
   -DGLM_FORCE_DEFAULT_ALIGNED_GENTYPES

@@ -1,19 +1,14 @@
 #include "Camera.hpp"
 #include <glm/gtc/matrix_transform.hpp>
+
 Camera::Camera(glm::vec3 pos, glm::vec3 up, float yaw, float pitch)
-    : position(pos),
-      front(glm::vec3(0.0f, 0.0f, -1.0f)),
-      worldUp(up),
-      yaw(yaw),
-      pitch(pitch),
-      movementSpeed(SPEED),
-      mouseSensitivity(SENSITIVITY)
+    : position(pos), front(glm::vec3(0.0f, 0.0f, -1.0f)), worldUp(up), yaw(yaw), pitch(pitch)
 {
     updateCameraVectors();
 }
 
 Camera::Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch)
-    : front(glm::vec3(0.0f, 0.0f, -1.0f)), yaw(yaw), pitch(pitch), movementSpeed(SPEED), mouseSensitivity(SENSITIVITY)
+    : front(glm::vec3(0.0f, 0.0f, -1.0f)), yaw(yaw), pitch(pitch)
 {
     position = glm::vec3(posX, posY, posZ);
     worldUp = glm::vec3(upX, upY, upZ);
@@ -33,35 +28,6 @@ Camera::GPUCameraData Camera::getGPUCameraData(float fFOV, float fAspectRatio, f
         .viewproj = projection * view,
     };
     return data;
-}
-
-void Camera::processKeyboard(Movement direction, float fElapsedTime)
-{
-    float velocity = movementSpeed * fElapsedTime;
-    switch (direction) {
-        case Movement::FORWARD: position += front * velocity; break;
-        case Movement::BACKWARD: position -= front * velocity; break;
-        case Movement::RIGHT: position += right * velocity; break;
-        case Movement::LEFT: position -= right * velocity; break;
-        case Movement::UP: position += up * velocity; break;
-        case Movement::DOWN: position -= up * velocity; break;
-    }
-}
-
-void Camera::processMouseMovement(float xoffset, float yoffset, bool bConstrainPitch)
-{
-    xoffset *= mouseSensitivity;
-    yoffset *= mouseSensitivity;
-
-    yaw += xoffset;
-    pitch += yoffset;
-
-    if (bConstrainPitch) {
-        if (pitch > 89.0f) pitch = 89.0f;
-        if (pitch < -89.0f) pitch = -89.0f;
-    }
-
-    updateCameraVectors();
 }
 
 void Camera::updateCameraVectors()

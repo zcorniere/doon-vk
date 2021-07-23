@@ -1,4 +1,5 @@
 #include "VulkanApplication.hpp"
+#include "Camera.hpp"
 #include "Logger.hpp"
 #include "PipelineBuilder.hpp"
 #include "SwapChainSupportDetails.hpp"

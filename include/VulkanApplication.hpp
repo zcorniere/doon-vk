@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Camera.hpp"
 #include "DeletionQueue.hpp"
 #include "QueueFamilyIndices.hpp"
 #include "Swapchain.hpp"

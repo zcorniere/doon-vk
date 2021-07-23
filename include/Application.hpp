@@ -1,7 +1,9 @@
 #pragma once
 
+#include "Player.hpp"
 #include "VulkanApplication.hpp"
 #include "types/RenderObject.hpp"
+
 #include <vector>
 
 #define WINDOW_TITLE_MAX_SIZE 128
@@ -43,7 +45,7 @@ private:
         bool bWireFrameMode = false;
         VkClearColorValue vClearColor = {{0.0f, 0.0f, 0.0f, 1.0f}};
     } uiRessources = {};
-    Camera camera;
+    Player player;
 
     std::vector<RenderObject> sceneModels;
     std::vector<gpuObject::Material> materials;
