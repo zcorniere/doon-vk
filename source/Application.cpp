@@ -421,6 +421,8 @@ void Application::drawImgui()
         ImGui::Text("Aspect ratio");
         ImGui::SliderFloat2("", uiRessources.cameraParamettersOverride.fAspectRatio, 0.f, 2048.f, "", 1.f);
         ImGui::Checkbox("Flying cam ?", &uiRessources.cameraParamettersOverride.bFlyingCam);
+        ImGui::SliderFloat("Gravity", &uiRessources.cameraParamettersOverride.fGravity, 0.0f, 20.f);
+        ImGui::InputFloat("Jumping Height", &player.jumpHeight);
     }
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
                 ImGui::GetIO().Framerate);
