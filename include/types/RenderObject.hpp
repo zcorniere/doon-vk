@@ -1,3 +1,5 @@
+#pragma once
+
 #include "types/vk_types.hpp"
 #include <string>
 

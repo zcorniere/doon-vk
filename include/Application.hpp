@@ -9,6 +9,7 @@
 #include "VulkanApplication.hpp"
 #include "types/Material.hpp"
 #include "types/RenderObject.hpp"
+#include "types/Scene.hpp"
 
 #define WINDOW_TITLE_MAX_SIZE 128
 
@@ -30,6 +31,7 @@ public:
     bool bInteractWithUi = false;
 
 private:
+    void buildIndirectBuffers(Frame &frame);
     void drawFrame();
     void drawImgui();
     static void keyboard_callback(GLFWwindow *win, int key, int, int action, int);
@@ -48,10 +50,11 @@ private:
         char sWindowTitle[WINDOW_TITLE_MAX_SIZE] = "Vulkan";
         bool bShowFpsInTitle = false;
         bool bWireFrameMode = false;
+        bool bTmpObject = false;
         VkClearColorValue vClearColor = {{0.0f, 0.0f, 0.0f, 1.0f}};
     } uiRessources = {};
     Player player;
-    std::vector<RenderObject> sceneModels;
+    Scene scene;
     std::vector<gpuObject::Material> materials;
     bool firstMouse = true;
 };

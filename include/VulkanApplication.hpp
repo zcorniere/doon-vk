@@ -48,6 +48,7 @@ public:
 
     void init(std::function<bool()> &&loadingStage);
     void recreateSwapchain();
+    AllocatedBuffer createBuffer(uint32_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 
 protected:
     template <typename T>
@@ -55,9 +56,7 @@ protected:
     template <typename T>
     void copyBuffer(AllocatedBuffer &buffer, T *data, size_t size);
     void copyBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, VkDeviceSize &size);
-
     GPUMesh uploadMesh(const CPUMesh &mesh);
-    AllocatedBuffer createBuffer(uint32_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
     void immediateCommand(std::function<void(VkCommandBuffer &)> &&);
     void copyBufferToImage(const VkBuffer &srcBuffer, VkImage &dstBuffer, uint32_t width, uint32_t height);
     void transitionImageLayout(VkImage &image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
@@ -92,6 +91,7 @@ private:
     void createDescriptorSetLayout();
     void createTextureDescriptorSetLayout();
     void createUniformBuffers();
+    void createIndirectBuffer();
     void createDescriptorPool();
     void createDescriptorSets();
     void createTextureDescriptorSets();

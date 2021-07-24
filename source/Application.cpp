@@ -185,7 +185,7 @@ void Application::run()
 {
     float fElapsedTime = 0;
 
-    sceneModels.push_back({
+    scene.addObject({
         .meshID = "plane",
         .ubo =
             {
@@ -198,7 +198,7 @@ void Application::run()
                 .textureIndex = 3,
             },
     });
-    sceneModels.push_back({
+    scene.addObject({
         .meshID = "ferdelance",
         .ubo =
             {
@@ -211,7 +211,7 @@ void Application::run()
                 .textureIndex = 1,
             },
     });
-    sceneModels.push_back({
+    scene.addObject({
         .meshID = "cube",
         .ubo =
             {
@@ -234,7 +234,7 @@ void Application::run()
     void *objectData = nullptr;
     for (auto &frame: frames) {
         vmaMapMemory(allocator, frame.data.materialBuffer.memory, &objectData);
-        gpuObject::Material *objectSSBI = (gpuObject::Material *)objectData;
+        auto *objectSSBI = (gpuObject::Material *)objectData;
         for (unsigned i = 0; i < materials.size(); i++) { objectSSBI[i] = materials.at(i); }
         vmaUnmapMemory(allocator, frame.data.materialBuffer.memory);
     }
@@ -263,6 +263,25 @@ void Application::run()
         std::chrono::duration<float> elapsedTime(tp2 - tp1);
         fElapsedTime = elapsedTime.count();
     }
+}
+
+void Application::buildIndirectBuffers(Frame &frame)
+{
+    void *sceneData = nullptr;
+    vmaMapMemory(allocator, frame.indirectBuffer.memory, &sceneData);
+    auto *buffer = (VkDrawIndexedIndirectCommand *)sceneData;
+    const auto &packedDraws = scene.getDrawBatch();
+
+    for (uint32_t i = 0; i < packedDraws.size(); i++) {
+        const auto &mesh = loadedMeshes[packedDraws[i].meshId];
+
+        buffer[i].firstIndex = 0;
+        buffer[i].indexCount = mesh.indicesSize;
+        buffer[i].vertexOffset = 0;
+        buffer[i].instanceCount = 1;
+        buffer[i].firstInstance = i;
+    }
+    vmaUnmapMemory(allocator, frame.indirectBuffer.memory);
 }
 
 void Application::drawFrame()
@@ -309,9 +328,10 @@ void Application::drawFrame()
 
     void *objectData = nullptr;
     vmaMapMemory(allocator, frame.data.uniformBuffers.memory, &objectData);
-    gpuObject::UniformBufferObject *objectSSBI = (gpuObject::UniformBufferObject *)objectData;
-    for (unsigned i = 0; i < sceneModels.size(); i++) { objectSSBI[i] = sceneModels.at(i).ubo; }
+    auto *objectSSBI = (gpuObject::UniformBufferObject *)objectData;
+    for (unsigned i = 0; i < scene.getNbOfObject(); i++) { objectSSBI[i] = scene.getObject(i).ubo; }
     vmaUnmapMemory(allocator, frame.data.uniformBuffers.memory);
+    buildIndirectBuffers(frame);
 
     VkRenderPassBeginInfo renderPassInfo{
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -337,15 +357,18 @@ void Application::drawFrame()
                        sizeof(gpuCamera), &gpuCamera);
     vkCmdBeginRenderPass(cmd, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     {
-        for (unsigned i = 0; i < sceneModels.size(); i++) {
-            const auto &mesh = loadedMeshes[sceneModels.at(i).meshID];
+        for (const auto &draw: scene.getDrawBatch()) {
+            const auto &mesh = loadedMeshes[draw.meshId];
+
             VkBuffer vertexBuffers[] = {mesh.meshBuffer.buffer};
             VkDeviceSize offsets[] = {0};
 
             vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
             vkCmdBindIndexBuffer(cmd, mesh.meshBuffer.buffer, mesh.indicesOffset, VK_INDEX_TYPE_UINT32);
 
-            vkCmdDrawIndexed(cmd, mesh.indicesSize, 1, 0, 0, i);
+            VkDeviceSize indirectOffset = draw.first * sizeof(VkDrawIndexedIndirectCommand);
+            uint32_t draw_stride = sizeof(VkDrawIndexedIndirectCommand);
+            vkCmdDrawIndexedIndirect(cmd, frame.indirectBuffer.buffer, indirectOffset, draw.count, draw_stride);
         }
     }
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
@@ -429,6 +452,26 @@ void Application::drawImgui()
                 if (msaa == maxMsaaSample) break;
             }
             ImGui::EndCombo();
+        }
+        if (ImGui::Checkbox("Vikin Room ?", &uiRessources.bTmpObject)) {
+            if (uiRessources.bTmpObject) {
+                scene.addObject({
+                    .meshID = "viking_room",
+                    .ubo =
+                        {
+                            .transform =
+                                {
+                                    .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(-20.0f, 0.f, -20.0f)),
+                                    .rotation =
+                                        glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+                                    .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(5.0f)),
+                                },
+                            .textureIndex = 2,
+                        },
+                });
+            } else {
+                scene.removeObject(4);
+            }
         }
     }
     if (ImGui::CollapsingHeader("Camera")) {

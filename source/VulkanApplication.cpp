@@ -54,6 +54,7 @@ void VulkanApplication::init(std::function<bool()> &&loadingStage)
 
     createAllocator();
     createSyncObjects();
+    createIndirectBuffer();
     createRenderPass();
     createDescriptorSetLayout();
     createTextureDescriptorSetLayout();
@@ -485,6 +486,18 @@ void VulkanApplication::createUniformBuffers()
     });
 }
 
+void VulkanApplication::createIndirectBuffer()
+{
+    for (auto &f: frames) {
+        f.indirectBuffer = this->createBuffer(sizeof(VkDrawIndexedIndirectCommand) * MAX_OBJECT,
+                                              VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                                  VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+                                              VMA_MEMORY_USAGE_CPU_TO_GPU);
+    }
+    mainDeletionQueue.push([&]() {
+        for (auto &f: frames) { vmaDestroyBuffer(allocator, f.indirectBuffer.buffer, f.indirectBuffer.memory); }
+    });
+}
 void VulkanApplication::createDescriptorPool()
 {
     std::array<VkDescriptorPoolSize, 2> poolSizes{};

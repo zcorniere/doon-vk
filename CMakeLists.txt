@@ -38,6 +38,7 @@ add_executable(${PROJECT_NAME} source/main.cpp
                                source/Logger.cpp
                                source/Camera.cpp
                                source/Player.cpp
+                               source/Scene.cpp
                                source/Swapchain.cpp
                                source/Application.cpp
 )
