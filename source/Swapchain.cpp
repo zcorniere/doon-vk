@@ -1,9 +1,15 @@
 #include "Swapchain.hpp"
+
+#include <optional>
+#include <stddef.h>
+#include <stdexcept>
+
 #include "QueueFamilyIndices.hpp"
 #include "SwapChainSupportDetails.hpp"
 #include "vk_init.hpp"
 #include "vk_utils.hpp"
-#include <stdexcept>
+
+class Window;
 
 Swapchain::Swapchain() {}
 

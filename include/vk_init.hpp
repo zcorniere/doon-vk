@@ -1,6 +1,11 @@
 #pragma once
 
+#include <cstddef>
+#include <stdint.h>
+#include <vector>
+#include <vulkan/vk_platform.h>
 #include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_core.h>
 
 namespace vk_init
 {

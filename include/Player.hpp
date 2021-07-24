@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Camera.hpp"
+#include "glm/vec3.hpp"
 
 class Player : public Camera
 {

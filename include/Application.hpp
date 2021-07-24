@@ -1,10 +1,14 @@
 #pragma once
 
+#include <Window.hpp>
+#include <vector>
+#include <vulkan/vulkan_core.h>
+
+#include "DeletionQueue.hpp"
 #include "Player.hpp"
 #include "VulkanApplication.hpp"
+#include "types/Material.hpp"
 #include "types/RenderObject.hpp"
-
-#include <vector>
 
 #define WINDOW_TITLE_MAX_SIZE 128
 

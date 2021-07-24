@@ -1,5 +1,15 @@
 #pragma once
 
+#include <cstring>
+#include <functional>
+#include <stdexcept>
+#include <stdint.h>
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include <vk_mem_alloc.h>
+#include <vulkan/vulkan_core.h>
+
 #include "DeletionQueue.hpp"
 #include "QueueFamilyIndices.hpp"
 #include "Swapchain.hpp"
@@ -13,12 +23,6 @@
 #include "types/Vertex.hpp"
 #include "types/vk_types.hpp"
 #include "vk_utils.hpp"
-
-#include <cstring>
-#include <stdexcept>
-#include <vector>
-#include <vk_mem_alloc.h>
-#include <vulkan/vulkan_core.h>
 
 const std::vector<const char *> validationLayers = {
     "VK_LAYER_KHRONOS_validation",

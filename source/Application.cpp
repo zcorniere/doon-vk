@@ -1,18 +1,41 @@
 #include "Application.hpp"
-#include "Logger.hpp"
-#include "vk_init.hpp"
 
+#include <algorithm>
+#include <array>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <chrono>
-#include <cstring>
+#include <cstdint>
 #include <filesystem>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <imgui.h>
+#include <math.h>
+#include <memory>
+#include <sstream>
 #include <stb_image.h>
+#include <stdexcept>
+#include <stdio.h>
+#include <string>
 #include <tiny_obj_loader.h>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+
+#include "Camera.hpp"
+#include "Logger.hpp"
+#include "Swapchain.hpp"
+#include "Window.hpp"
+#include "types/AllocatedBuffer.hpp"
+#include "types/CreationParameters.hpp"
+#include "types/Frame.hpp"
+#include "types/Mesh.hpp"
+#include "types/Vertex.hpp"
+#include "types/vk_types.hpp"
+#include "vk_init.hpp"
+#include "vk_mem_alloc.h"
+#include "vk_utils.hpp"
 
 Application::Application(): player()
 {

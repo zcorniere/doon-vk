@@ -1,5 +1,10 @@
 #include "Logger.hpp"
 
+#include <exception>
+#include <iostream>
+#include <optional>
+#include <utility>
+
 Logger::Logger() {}
 
 Logger::~Logger() { this->stop(); }

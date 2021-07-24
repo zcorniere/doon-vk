@@ -1,13 +1,15 @@
 #pragma once
 
-#include "ThreadedQ.hpp"
 #include <atomic>
 #include <iostream>
 #include <memory>
 #include <mutex>
 #include <sstream>
+#include <string>
 #include <thread>
 #include <unordered_map>
+
+#include "ThreadedQ.hpp"
 
 #define S1(x) #x
 #define S2(x) S1(x)

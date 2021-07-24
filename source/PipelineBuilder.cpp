@@ -1,6 +1,5 @@
 #include "PipelineBuilder.hpp"
-#include "vk_init.hpp"
-#include "vk_utils.hpp"
+
 #include <iostream>
 
 VkPipeline PipelineBuilder::build(VkDevice &device, VkRenderPass &pass)

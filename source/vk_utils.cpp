@@ -1,6 +1,9 @@
 #include "vk_utils.hpp"
-#include "vk_init.hpp"
+
 #include <fstream>
+#include <stdexcept>
+
+#include "vk_init.hpp"
 
 namespace vk_utils
 {

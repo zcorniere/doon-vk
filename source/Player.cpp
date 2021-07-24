@@ -1,5 +1,10 @@
 #include "Player.hpp"
+
+#include <ostream>
+#include <string>
+
 #include "Logger.hpp"
+#include "glm/vec3.hpp"
 
 Player::Player(): Camera() {}
 

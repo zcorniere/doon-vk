@@ -1,6 +1,13 @@
+#include <Window.hpp>
+#include <ostream>
+#include <stdint.h>
+#include <string.h>
+#include <string>
+#include <vector>
+#include <vulkan/vulkan_core.h>
+
 #include "Logger.hpp"
 #include "VulkanApplication.hpp"
-#include <string>
 
 std::vector<const char *> VulkanApplication::getRequiredExtensions(bool bEnableValidationLayers)
 {

@@ -1,5 +1,11 @@
+#include <exception>
+#include <memory>
+#include <ostream>
+#include <stdlib.h>
+
 #include "Application.hpp"
 #include "Logger.hpp"
+#include "types/VulkanException.hpp"
 
 Logger *logger = nullptr;
 

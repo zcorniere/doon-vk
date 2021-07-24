@@ -1,11 +1,15 @@
 #pragma once
 
+#include <Window.hpp>
+#include <stdint.h>
 #include <vector>
 #include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 #include "DeletionQueue.hpp"
 #include "types/CreationParameters.hpp"
-#include <Window.hpp>
+
+class Window;
 
 class Swapchain
 {
