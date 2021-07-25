@@ -152,10 +152,6 @@ void VulkanApplication::createLogicalDevice()
         queueCreateInfos.push_back(vk_init::populateDeviceQueueCreateInfo(1, queueFamily, fQueuePriority));
     }
 
-    VkPhysicalDeviceFeatures deviceFeature{
-        .fillModeNonSolid = VK_TRUE,
-        .samplerAnisotropy = VK_TRUE,
-    };
     VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndex{
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
         .pNext = nullptr,
@@ -164,10 +160,19 @@ void VulkanApplication::createLogicalDevice()
         .descriptorBindingVariableDescriptorCount = VK_TRUE,
         .runtimeDescriptorArray = VK_TRUE,
     };
+    VkPhysicalDeviceVulkan11Features v11Features{
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+        .pNext = &descriptorIndex,
+        .shaderDrawParameters = VK_TRUE,
+    };
 
+    VkPhysicalDeviceFeatures deviceFeature{
+        .fillModeNonSolid = VK_TRUE,
+        .samplerAnisotropy = VK_TRUE,
+    };
     VkDeviceCreateInfo createInfo{
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        .pNext = &descriptorIndex,
+        .pNext = &v11Features,
         .queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size()),
         .pQueueCreateInfos = queueCreateInfos.data(),
         .enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size()),
@@ -444,8 +449,9 @@ void VulkanApplication::createDescriptorSetLayout()
 
 void VulkanApplication::createTextureDescriptorSetLayout()
 {
-    std::vector<VkDescriptorBindingFlags> flags;
-    flags.push_back(VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT);
+    std::vector<VkDescriptorBindingFlags> flags{
+        VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
+    };
 
     VkDescriptorSetLayoutBindingFlagsCreateInfo bindingInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
@@ -569,13 +575,6 @@ void VulkanApplication::createDescriptorSets()
 
 void VulkanApplication::createTextureDescriptorSets()
 {
-    uint32_t counts[] = {32};
-    VkDescriptorSetVariableDescriptorCountAllocateInfo set_counts{
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO,
-        .pNext = nullptr,
-        .descriptorSetCount = std::size(counts),
-        .pDescriptorCounts = counts,
-    };
     std::vector<VkDescriptorImageInfo> imagesInfos;
     for (auto &[_, t]: loadedTextures) {
         imagesInfos.push_back({
@@ -585,6 +584,13 @@ void VulkanApplication::createTextureDescriptorSets()
         });
     }
 
+    uint32_t counts[] = {static_cast<uint32_t>(imagesInfos.size())};
+    VkDescriptorSetVariableDescriptorCountAllocateInfo set_counts{
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO,
+        .pNext = nullptr,
+        .descriptorSetCount = std::size(counts),
+        .pDescriptorCounts = counts,
+    };
     VkDescriptorSetAllocateInfo allocInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
         .pNext = &set_counts,
