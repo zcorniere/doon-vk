@@ -44,7 +44,7 @@ private:
     std::thread msgT;
     ThreadedQ<std::string> qMsg;
     std::deque<std::shared_ptr<ProgressBar>> qBars;
-    std::atomic_uint newBars = 0;
+    std::atomic_int newBars = 0;
     std::unordered_map<std::thread::id, std::stringstream> mBuffers;
 };
 

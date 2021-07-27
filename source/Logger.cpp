@@ -14,13 +14,15 @@ void Logger::thread_loop()
     while (!bExit) {
         try {
             qMsg.waitTimeout<100>();
-            for (unsigned i = 0; i < qBars.size() - newBars; i++) std::cout << "\r\033[2K\033[A";
+            for (int i = 0; i < static_cast<int>(qBars.size()) - newBars; i++) std::cout << "\r\033[2K\033[1A";
             newBars = 0;
             while (!qMsg.empty()) {
                 auto i = qMsg.pop_front();
-                if (i) std::cout << "\33[2K" << *i << "\e[0m" << std::endl;
+                if (i) std::cout << "\33[K" << *i << "\e[0m" << std::endl;
             }
-            for (size_t i = 0; i < qBars.size(); i++) { qBars.at(i)->update(std::cout); }
+            for (const auto &bar: qBars) bar->update(std::cout);
+            std::cout << "\r\033[K";
+            std::cout.flush();
         } catch (const std::exception &e) {
             std::cout << "LOGGER ERROR:" << e.what() << std::endl;
         }
@@ -31,9 +33,10 @@ void Logger::start() { msgT = std::thread(&Logger::thread_loop, this); }
 
 void Logger::stop()
 {
-    this->flush();
     bExit = true;
     qMsg.setWaitMode(false);
+
+    this->flush();
     if (msgT.joinable()) { msgT.join(); }
 }
 
@@ -57,7 +60,11 @@ std::shared_ptr<ProgressBar> Logger::newProgressBar(const std::string &message, 
     return p;
 }
 
-void Logger::deleteProgressBar(const std::shared_ptr<ProgressBar> &bar) { std::erase(qBars, bar); }
+void Logger::deleteProgressBar(const std::shared_ptr<ProgressBar> &bar)
+{
+    std::erase(qBars, bar);
+    newBars -= 1;
+}
 
 void Logger::endl()
 {

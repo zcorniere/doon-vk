@@ -11,7 +11,7 @@ ProgressBar::~ProgressBar() {}
 void ProgressBar::update(std::ostream &out) const
 {
     uint64_t uWidth = 40;
-    out << message << "\t[";
+    out << "\33[2K\033[1m" << message << "\033[0m\t[";
     uint64_t fills = (int64_t)((float)uProgress / uMax * uWidth);
     for (uint64_t i = 0; i < uWidth; i++) {
         if (i < fills) {
