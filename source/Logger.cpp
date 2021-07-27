@@ -16,7 +16,7 @@ void Logger::thread_loop()
             qMsg.wait();
             while (!qMsg.empty()) {
                 auto i = qMsg.pop_front();
-                if (i) { std::cerr << *i << "\e[0m" << std::endl; }
+                if (i) { std::cerr << "\33[2K" << *i << "\e[0m" << std::endl; }
             }
         } catch (const std::exception &e) {
             std::cerr << "LOGGER ERROR:" << e.what() << std::endl;

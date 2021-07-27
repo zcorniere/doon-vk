@@ -41,6 +41,7 @@ add_executable(${PROJECT_NAME} source/main.cpp
                                source/Scene.cpp
                                source/Swapchain.cpp
                                source/Application.cpp
+                               source/ProgressBar.cpp
 )
 
 add_shader(${PROJECT_NAME} default_triangle.vert)
