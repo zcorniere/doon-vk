@@ -13,3 +13,6 @@
 [submodule "lib/imgui"]
 	path = lib/imgui
 	url = git@github.com:ocornut/imgui.git
+[submodule "lib/logger-cpp"]
+	path = lib/logger-cpp
+	url = git@github.com:zcorniere/logger-cpp.git

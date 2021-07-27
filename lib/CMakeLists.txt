@@ -2,6 +2,8 @@ add_subdirectory(glfw/ EXCLUDE_FROM_ALL)
 
 add_subdirectory(glm/ EXCLUDE_FROM_ALL)
 
+add_subdirectory(logger-cpp/ EXCLUDE_FROM_ALL)
+
 add_subdirectory(tinyobjloader/ EXCLUDE_FROM_ALL)
 
 set(VMA_USE_STL_CONTAINERS ON)

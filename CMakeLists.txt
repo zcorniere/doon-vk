@@ -35,13 +35,11 @@ add_executable(${PROJECT_NAME} source/main.cpp
                                source/vk_init.cpp
                                source/vk_utils.cpp
                                source/PipelineBuilder.cpp
-                               source/Logger.cpp
                                source/Camera.cpp
                                source/Player.cpp
                                source/Scene.cpp
                                source/Swapchain.cpp
                                source/Application.cpp
-                               source/ProgressBar.cpp
 )
 
 add_shader(${PROJECT_NAME} default_triangle.vert)
@@ -72,4 +70,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE stb
                                               imgui
                                               VulkanMemoryAllocator
                                               tinyobjloader
+                                              logger
 )
