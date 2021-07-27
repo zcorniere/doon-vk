@@ -55,16 +55,15 @@ Application::~Application()
 
 void Application::loadModel()
 {
-    auto index = 0;
     auto iterator = std::filesystem::directory_iterator("../models");
     auto distance = std::distance(begin(iterator), {});
 
-    ProgressBar bar(std::cerr, "Model", 36, '=', ' ');
+    auto bar = logger->newProgressBar("Model", distance);
     for (const auto &file: std::filesystem::directory_iterator("../models")) {
-        bar.update(index++, distance - 1);
+        ++(*bar);
         if (file.path().extension() != ".obj") { continue; }
-        // logger->info("LOADING") << "Loading object: " << file.path();
-        // LOGGER_ENDL;
+        logger->info("LOADING") << "Loading object: " << file.path();
+        LOGGER_ENDL;
 
         CPUMesh mesh{};
         tinyobj::attrib_t attrib;
@@ -114,13 +113,12 @@ void Application::loadModel()
                     uniqueVertices[vertex] = mesh.verticies.size();
                     mesh.verticies.push_back(vertex);
                 }
-
                 mesh.indices.push_back(uniqueVertices.at(vertex));
             }
         }
         loadedMeshes[file.path().stem()] = uploadMesh(mesh);
     }
-    std::cerr << std::endl;
+    logger->deleteProgressBar(bar);
     applicationDeletionQueue.push([=]() {
         for (auto &[_, i]: loadedMeshes) { vmaDestroyBuffer(allocator, i.meshBuffer.buffer, i.meshBuffer.memory); }
     });
@@ -128,16 +126,15 @@ void Application::loadModel()
 
 void Application::loadTextures()
 {
-    auto index = 0;
     auto iterator = std::filesystem::directory_iterator("../textures");
     auto distance = std::distance(begin(iterator), end(iterator));
 
-    ProgressBar bar(std::cerr, "Texture", 36, '=', ' ');
+    auto bar = logger->newProgressBar("Texture", distance);
     for (auto &f: std::filesystem::directory_iterator("../textures")) {
-        bar.update(index++, distance - 1);
+        ++(*bar);
 
-        // logger->info("LOADING") << "Loading texture: " << f.path();
-        // LOGGER_ENDL;
+        logger->info("LOADING") << "Loading texture: " << f.path();
+        LOGGER_ENDL;
         int texWidth, texHeight, texChannels;
         stbi_uc *pixels = stbi_load(f.path().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         VkDeviceSize imageSize = texWidth * texHeight * 4;
@@ -188,7 +185,7 @@ void Application::loadTextures()
         generateMipmaps(image.image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
         loadedTextures.insert({f.path().stem(), std::move(image)});
     }
-    std::cerr << std::endl;
+    logger->deleteProgressBar(bar);
     applicationDeletionQueue.push([&]() {
         for (auto &[_, p]: loadedTextures) {
             vkDestroyImageView(device, p.imageView, nullptr);

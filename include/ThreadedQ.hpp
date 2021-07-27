@@ -35,7 +35,7 @@ public:
         std::scoped_lock lock(q_mut);
         return q.empty();
     }
-    size_t size() const
+    auto size() const
     {
         std::scoped_lock lock(q_mut);
         return q.size();
@@ -84,6 +84,12 @@ public:
             std::unique_lock<std::mutex> ul(mutBlocking);
             vBlocking.wait(ul);
         }
+    }
+    template <unsigned D = 10>
+    void waitTimeout()
+    {
+        std::unique_lock<std::mutex> ul(mutBlocking);
+        vBlocking.wait_for(ul, std::chrono::milliseconds(D));
     }
 
     void notify()

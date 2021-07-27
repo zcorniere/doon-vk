@@ -13,13 +13,16 @@ void Logger::thread_loop()
 {
     while (!bExit) {
         try {
-            qMsg.wait();
+            qMsg.waitTimeout<100>();
+            for (unsigned i = 0; i < qBars.size() - newBars; i++) std::cout << "\r\033[2K\033[A";
+            newBars = 0;
             while (!qMsg.empty()) {
                 auto i = qMsg.pop_front();
-                if (i) { std::cerr << "\33[2K" << *i << "\e[0m" << std::endl; }
+                if (i) std::cout << "\33[2K" << *i << "\e[0m" << std::endl;
             }
+            for (size_t i = 0; i < qBars.size(); i++) { qBars.at(i)->update(std::cout); }
         } catch (const std::exception &e) {
-            std::cerr << "LOGGER ERROR:" << e.what() << std::endl;
+            std::cout << "LOGGER ERROR:" << e.what() << std::endl;
         }
     }
 }
@@ -40,10 +43,21 @@ void Logger::flush()
 
     for (auto &[_, i]: mBuffers) {
         std::string msg(i.str());
-        if (!msg.empty()) std::cerr << msg << std::endl;
+        if (!msg.empty()) std::cout << msg << std::endl;
         i = std::stringstream();
     }
 }
+
+std::shared_ptr<ProgressBar> Logger::newProgressBar(const std::string &message, uint64_t uMax)
+{
+    auto p = std::make_shared<ProgressBar>(message, uMax);
+
+    qBars.push_back(p);
+    newBars += 1;
+    return p;
+}
+
+void Logger::deleteProgressBar(const std::shared_ptr<ProgressBar> &bar) { std::erase(qBars, bar); }
 
 void Logger::endl()
 {

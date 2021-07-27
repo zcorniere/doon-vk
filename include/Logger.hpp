@@ -9,6 +9,7 @@
 #include <thread>
 #include <unordered_map>
 
+#include "ProgressBar.hpp"
 #include "ThreadedQ.hpp"
 
 #define S1(x) #x
@@ -25,13 +26,16 @@ public:
     void stop();
     void flush();
 
+    std::shared_ptr<ProgressBar> newProgressBar(const std::string &message = "", uint64_t uMax = 100);
+    void deleteProgressBar(const std::shared_ptr<ProgressBar> &bar);
+
+    void endl();
     std::stringstream &warn(const std::string &msg = "WARNING");
     std::stringstream &err(const std::string &msg = "ERROR");
     std::stringstream &info(const std::string &msg = "INFO");
     std::stringstream &debug(const std::string &msg = "DEBUG");
     std::stringstream &msg(const std::string &msg = "MESSAGE");
     std::stringstream &raw();
-    void endl();
 
 private:
     void thread_loop();
@@ -39,6 +43,8 @@ private:
     std::atomic_bool bExit = false;
     std::thread msgT;
     ThreadedQ<std::string> qMsg;
+    std::deque<std::shared_ptr<ProgressBar>> qBars;
+    std::atomic_uint newBars = 0;
     std::unordered_map<std::thread::id, std::stringstream> mBuffers;
 };
 

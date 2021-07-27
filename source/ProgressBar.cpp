@@ -1,34 +1,34 @@
 #include "ProgressBar.hpp"
 #include <chrono>
 
-ProgressBar::ProgressBar(std::ostream &out_, std::string _message, int width_, char fill_, char space_, bool show_time_)
-    : message(_message), out(out_), uWidth(width_), fill(fill_), space(space_), bShowTime(show_time_)
+ProgressBar::ProgressBar(std::string _message, uint64_t max, bool show_time_)
+    : uMax(max), message(_message), bShowTime(show_time_)
 {
 }
 
 ProgressBar::~ProgressBar() {}
 
-void ProgressBar::update(uint64_t cur, uint64_t total)
+void ProgressBar::update(std::ostream &out) const
 {
-    out << "\033[A\033[2K\r" << message << '[';
-    uint64_t fills = (int64_t)((float)cur / total * uWidth);
+    uint64_t uWidth = 40;
+    out << message << "\t[";
+    uint64_t fills = (int64_t)((float)uProgress / uMax * uWidth);
     for (uint64_t i = 0; i < uWidth; i++) {
         if (i < fills) {
-            out << fill;
+            out << '=';
         } else if (i == fills) {
-            out << equal;
+            out << '>';
         } else if (i > fills) {
-            out << space;
+            out << ' ';
         }
     }
-    out << "] " << cur << '/' << total;
+    out << "] " << uProgress << '/' << uMax;
 
     if (bShowTime) {
-        if (cur > 0 && cur < total) {
-            // if not first call, output time estimate for remaining time
+        if (uProgress > 0 && uProgress < uMax) {
             out << ' ';
             auto elapsed = (std::chrono::steady_clock::now() - start_time);
-            auto estimate = elapsed / cur * (total - cur);
+            auto estimate = elapsed / uProgress * (uMax - uProgress);
             writeTime(out, estimate);
             out << " remaining; ";
             writeTime(out, elapsed);
@@ -40,7 +40,7 @@ void ProgressBar::update(uint64_t cur, uint64_t total)
     out << std::endl;
 }
 
-void ProgressBar::writeTime(std::ostream &out, std::chrono::duration<float> dur)
+void ProgressBar::writeTime(std::ostream &out, std::chrono::duration<float> dur) const
 {
     using namespace std::chrono_literals;
 
