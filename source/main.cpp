@@ -11,7 +11,7 @@ Logger *logger = nullptr;
 
 __attribute__((constructor)) void ctor()
 {
-    logger = new Logger();
+    logger = new Logger(std::cout);
     logger->start();
 }
 __attribute__((destructor)) void dtor() { delete logger; }

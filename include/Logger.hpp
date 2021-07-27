@@ -20,7 +20,7 @@
 class Logger
 {
 public:
-    Logger();
+    Logger(std::ostream &stream);
     ~Logger();
     void start();
     void stop();
@@ -39,6 +39,8 @@ public:
 
 private:
     void thread_loop();
+
+    std::ostream &stream;
     std::mutex mutBuffer;
     std::atomic_bool bExit = false;
     std::thread msgT;

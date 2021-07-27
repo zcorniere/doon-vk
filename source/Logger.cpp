@@ -5,7 +5,7 @@
 #include <optional>
 #include <utility>
 
-Logger::Logger() {}
+Logger::Logger(std::ostream &stream): stream(stream) {}
 
 Logger::~Logger() { this->stop(); }
 
@@ -14,17 +14,17 @@ void Logger::thread_loop()
     while (!bExit) {
         try {
             qMsg.waitTimeout<100>();
-            for (int i = 0; i < static_cast<int>(qBars.size()) - newBars; i++) std::cout << "\r\033[2K\033[1A";
+            for (int i = 0; i < static_cast<int>(qBars.size()) - newBars; i++) stream << "\r\033[2K\033[1A";
             newBars = 0;
             while (!qMsg.empty()) {
                 auto i = qMsg.pop_front();
-                if (i) std::cout << "\33[K" << *i << "\e[0m" << std::endl;
+                if (i) stream << "\33[K" << *i << "\e[0m" << std::endl;
             }
-            for (const auto &bar: qBars) bar->update(std::cout);
-            std::cout << "\r\033[K";
-            std::cout.flush();
+            for (const auto &bar: qBars) bar->update(stream);
+            stream << "\r\033[K";
+            stream.flush();
         } catch (const std::exception &e) {
-            std::cout << "LOGGER ERROR:" << e.what() << std::endl;
+            stream << "LOGGER ERROR:" << e.what() << std::endl;
         }
     }
 }
@@ -46,7 +46,7 @@ void Logger::flush()
 
     for (auto &[_, i]: mBuffers) {
         std::string msg(i.str());
-        if (!msg.empty()) std::cout << msg << std::endl;
+        if (!msg.empty()) stream << msg << std::endl;
         i = std::stringstream();
     }
 }
