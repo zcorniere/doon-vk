@@ -94,20 +94,21 @@ void Application::loadModel()
                             attrib.vertices[3 * index.vertex_index + 1],
                             attrib.vertices[3 * index.vertex_index + 2],
                         },
-                    .normal =
-                        {
-                            attrib.normals[3 * index.normal_index + 0],
-                            attrib.normals[3 * index.normal_index + 1],
-                            attrib.normals[3 * index.normal_index + 2],
-                        },
-
                     .color = {1.0f, 1.0f, 1.0f},
-                    .texCoord =
-                        {
-                            attrib.texcoords[2 * index.texcoord_index + 0],
-                            1.0f - attrib.texcoords[2 * index.texcoord_index + 1],
-                        },
                 };
+                if (!attrib.normals.empty()) {
+                    vertex.normal = {
+                        attrib.normals[3 * index.normal_index + 0],
+                        attrib.normals[3 * index.normal_index + 1],
+                        attrib.normals[3 * index.normal_index + 2],
+                    };
+                }
+                if (!attrib.texcoords.empty()) {
+                    vertex.texCoord = {
+                        attrib.texcoords[2 * index.texcoord_index + 0],
+                        1.0f - attrib.texcoords[2 * index.texcoord_index + 1],
+                    };
+                }
 
                 if (!uniqueVertices.contains(vertex)) {
                     uniqueVertices[vertex] = mesh.verticies.size();
@@ -371,7 +372,7 @@ void Application::drawFrame()
     vkCmdBeginRenderPass(cmd, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     {
         for (const auto &draw: scene.getDrawBatch()) {
-            const auto &mesh = loadedMeshes[draw.meshId];
+            const auto &mesh = loadedMeshes.at(draw.meshId);
 
             VkBuffer vertexBuffers[] = {mesh.meshBuffer.buffer};
             VkDeviceSize offsets[] = {0};
