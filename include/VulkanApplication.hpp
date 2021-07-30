@@ -52,7 +52,7 @@ public:
 
 protected:
     template <typename T>
-    void copyBuffer(AllocatedBuffer &buffer, std::vector<T> data);
+    void copyBuffer(AllocatedBuffer &buffer, std::vector<T> &data);
     template <typename T>
     void copyBuffer(AllocatedBuffer &buffer, T *data, size_t size);
     void copyBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, VkDeviceSize &size);
@@ -145,6 +145,9 @@ protected:
     uint8_t currentFrame = 0;
     Frame frames[MAX_FRAME_FRAME_IN_FLIGHT];
 
+    // Models
+    AllocatedBuffer vertexBuffers;
+    AllocatedBuffer indicesBuffers;
     std::unordered_map<std::string, GPUMesh> loadedMeshes;
 
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
@@ -165,6 +168,9 @@ private:
     DeletionQueue swapchainDeletionQueue;
 };
 
+#ifndef VULKAN_APPLICATION_IMPLEMENTATION
+#define VULKAN_APPLICATION_IMPLEMENTATION
+
 template <typename T>
 void VulkanApplication::copyBuffer(AllocatedBuffer &buffer, T *data, size_t size)
 {
@@ -175,7 +181,7 @@ void VulkanApplication::copyBuffer(AllocatedBuffer &buffer, T *data, size_t size
 }
 
 template <typename T>
-void VulkanApplication::copyBuffer(AllocatedBuffer &buffer, std::vector<T> data)
+void VulkanApplication::copyBuffer(AllocatedBuffer &buffer, std::vector<T> &data)
 {
     VkDeviceSize size = sizeof(data[0]) * data.size();
     void *mapped = nullptr;
@@ -183,3 +189,5 @@ void VulkanApplication::copyBuffer(AllocatedBuffer &buffer, std::vector<T> data)
     std::memcpy(mapped, data.data(), size);
     vmaUnmapMemory(allocator, buffer.memory);
 }
+
+#endif

@@ -10,9 +10,8 @@ struct CPUMesh {
 };
 
 struct GPUMesh {
-    VkDeviceSize verticiesOffset;
-    VkDeviceSize verticiesSize;
-    VkDeviceSize indicesOffset;
-    VkDeviceSize indicesSize;
-    AllocatedBuffer meshBuffer;
+    VkDeviceSize verticiesOffset = 0;
+    VkDeviceSize verticiesSize = 0;
+    VkDeviceSize indicesOffset = 0;
+    VkDeviceSize indicesSize = 0;
 };

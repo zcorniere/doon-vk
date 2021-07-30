@@ -55,6 +55,9 @@ Application::~Application()
 
 void Application::loadModel()
 {
+    std::vector<Vertex> vertexStagingBuffer;
+    std::vector<uint32_t> indexStagingBuffer;
+
     auto iterator = std::filesystem::directory_iterator("../models");
     auto distance = std::distance(begin(iterator), {});
 
@@ -65,22 +68,24 @@ void Application::loadModel()
         logger->info("LOADING") << "Loading object: " << file.path();
         LOGGER_ENDL;
 
-        CPUMesh mesh{};
+        GPUMesh mesh{
+            .verticiesOffset = vertexStagingBuffer.size(),
+            .indicesOffset = indexStagingBuffer.size(),
+        };
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
         std::vector<tinyobj::material_t> materials;
         std::string warn, err;
 
-        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, file.path().c_str(), nullptr)) {
-            if (!warn.empty()) {
-                logger->warn("LOADING_OBJ") << warn;
-                LOGGER_ENDL;
-            }
-            if (!err.empty()) {
-                logger->err("LOADING_OBJ") << err;
-                LOGGER_ENDL;
-                throw std::runtime_error("Error while loading obj file");
-            }
+        tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, file.path().c_str(), nullptr);
+        if (!warn.empty()) {
+            logger->warn("LOADING_OBJ") << warn;
+            LOGGER_ENDL;
+        }
+        if (!err.empty()) {
+            logger->err("LOADING_OBJ") << err;
+            LOGGER_ENDL;
+            throw std::runtime_error("Error while loading obj file");
         }
 
         std::unordered_map<Vertex, uint32_t> uniqueVertices{};
@@ -111,17 +116,36 @@ void Application::loadModel()
                 }
 
                 if (!uniqueVertices.contains(vertex)) {
-                    uniqueVertices[vertex] = mesh.verticies.size();
-                    mesh.verticies.push_back(vertex);
+                    uniqueVertices[vertex] = vertexStagingBuffer.size() - mesh.verticiesOffset;
+                    vertexStagingBuffer.push_back(vertex);
                 }
-                mesh.indices.push_back(uniqueVertices.at(vertex));
+                indexStagingBuffer.push_back(uniqueVertices.at(vertex));
             }
         }
-        loadedMeshes[file.path().stem()] = uploadMesh(mesh);
+        mesh.indicesSize = indexStagingBuffer.size() - mesh.indicesOffset;
+        mesh.verticiesSize = vertexStagingBuffer.size() - mesh.verticiesOffset;
+        loadedMeshes[file.path().stem()] = mesh;
     }
+    auto vertexSize = vertexStagingBuffer.size() * sizeof(Vertex);
+    auto stagingVertex = createBuffer(vertexSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    vertexBuffers = createBuffer(vertexSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                 VMA_MEMORY_USAGE_GPU_ONLY);
+    copyBuffer(stagingVertex, vertexStagingBuffer);
+    copyBuffer(stagingVertex.buffer, vertexBuffers.buffer, vertexSize);
+
+    auto indexSize = indexStagingBuffer.size() * sizeof(uint32_t);
+    auto stagingIndex = createBuffer(indexSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    indicesBuffers = createBuffer(indexSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                  VMA_MEMORY_USAGE_GPU_ONLY);
+    copyBuffer(stagingIndex, indexStagingBuffer);
+    copyBuffer(stagingIndex.buffer, indicesBuffers.buffer, indexSize);
+
+    vmaDestroyBuffer(allocator, stagingVertex.buffer, stagingVertex.memory);
+    vmaDestroyBuffer(allocator, stagingIndex.buffer, stagingIndex.memory);
     logger->deleteProgressBar(bar);
     applicationDeletionQueue.push([=]() {
-        for (auto &[_, i]: loadedMeshes) { vmaDestroyBuffer(allocator, i.meshBuffer.buffer, i.meshBuffer.memory); }
+        vmaDestroyBuffer(allocator, vertexBuffers.buffer, vertexBuffers.memory);
+        vmaDestroyBuffer(allocator, indicesBuffers.buffer, indicesBuffers.memory);
     });
 }
 
@@ -289,9 +313,9 @@ void Application::buildIndirectBuffers(Frame &frame)
     for (uint32_t i = 0; i < packedDraws.size(); i++) {
         const auto &mesh = loadedMeshes[packedDraws[i].meshId];
 
-        buffer[i].firstIndex = 0;
+        buffer[i].firstIndex = mesh.indicesOffset;
         buffer[i].indexCount = mesh.indicesSize;
-        buffer[i].vertexOffset = 0;
+        buffer[i].vertexOffset = mesh.verticiesOffset;
         buffer[i].instanceCount = 1;
         buffer[i].firstInstance = i;
     }
@@ -369,17 +393,13 @@ void Application::drawFrame()
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texturesSet, 0, nullptr);
     vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                        sizeof(gpuCamera), &gpuCamera);
+
+    VkDeviceSize offsets = 0;
+    vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffers.buffer, &offsets);
+    vkCmdBindIndexBuffer(cmd, indicesBuffers.buffer, 0, VK_INDEX_TYPE_UINT32);
     vkCmdBeginRenderPass(cmd, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     {
         for (const auto &draw: scene.getDrawBatch()) {
-            const auto &mesh = loadedMeshes.at(draw.meshId);
-
-            VkBuffer vertexBuffers[] = {mesh.meshBuffer.buffer};
-            VkDeviceSize offsets[] = {0};
-
-            vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
-            vkCmdBindIndexBuffer(cmd, mesh.meshBuffer.buffer, mesh.indicesOffset, VK_INDEX_TYPE_UINT32);
-
             VkDeviceSize indirectOffset = draw.first * sizeof(VkDrawIndexedIndirectCommand);
             uint32_t draw_stride = sizeof(VkDrawIndexedIndirectCommand);
             vkCmdDrawIndexedIndirect(cmd, frame.indirectBuffer.buffer, indirectOffset, draw.count, draw_stride);
@@ -439,6 +459,7 @@ void Application::drawImgui()
     }
 
     if (ImGui::CollapsingHeader("Render")) {
+        if (ImGui::Button("Recreate Swapchain")) { framebufferResized = true; }
         if (ImGui::Checkbox("Wireframe mode", &uiRessources.bWireFrameMode)) {
             creationParameters.polygonMode =
                 (uiRessources.bWireFrameMode) ? (VK_POLYGON_MODE_LINE) : (VK_POLYGON_MODE_FILL);
@@ -477,7 +498,7 @@ void Application::drawImgui()
                                 {
                                     .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(-20.0f, 0.f, -20.0f)),
                                     .rotation =
-                                        glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+                                        glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f)),
                                     .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(5.0f)),
                                 },
                             .textureIndex = 2,

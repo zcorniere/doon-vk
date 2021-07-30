@@ -178,37 +178,6 @@ AllocatedBuffer VulkanApplication::createBuffer(uint32_t allocSize, VkBufferUsag
     return newBuffer;
 }
 
-GPUMesh VulkanApplication::uploadMesh(const CPUMesh &mesh)
-{
-    VkDeviceSize verticesSize = sizeof(mesh.verticies[0]) * mesh.verticies.size();
-    VkDeviceSize indicesSize = sizeof(mesh.indices[0]) * mesh.indices.size();
-    VkDeviceSize totalSize = verticesSize + indicesSize;
-
-    GPUMesh gmesh{
-        .verticiesOffset = 0,
-        .verticiesSize = static_cast<uint32_t>(mesh.verticies.size()),
-        .indicesOffset = static_cast<uint32_t>(verticesSize),
-        .indicesSize = static_cast<uint32_t>(mesh.indices.size()),
-    };
-    AllocatedBuffer stagingBuffer =
-        createBuffer(totalSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-    gmesh.meshBuffer = createBuffer(totalSize,
-                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-                                        VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                    VMA_MEMORY_USAGE_GPU_ONLY);
-
-    void *mapped = nullptr;
-    vmaMapMemory(allocator, stagingBuffer.memory, &mapped);
-    std::memcpy(mapped, mesh.verticies.data(), verticesSize);
-    std::memcpy((unsigned char *)mapped + verticesSize, mesh.indices.data(), indicesSize);
-    vmaUnmapMemory(allocator, stagingBuffer.memory);
-
-    copyBuffer(stagingBuffer.buffer, gmesh.meshBuffer.buffer, totalSize);
-    vmaDestroyBuffer(allocator, stagingBuffer.buffer, stagingBuffer.memory);
-    return gmesh;
-}
-
 void VulkanApplication::generateMipmaps(VkImage &image, VkFormat imageFormat, uint32_t texWidth, uint32_t texHeight,
                                         uint32_t mipLevel)
 {
