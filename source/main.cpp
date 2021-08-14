@@ -1,6 +1,6 @@
 #include <exception>
+#include <iostream>
 #include <memory>
-#include <ostream>
 #include <stdlib.h>
 
 #include "Application.hpp"

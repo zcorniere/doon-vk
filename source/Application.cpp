@@ -61,9 +61,9 @@ void Application::loadModel()
     auto iterator = std::filesystem::directory_iterator("../models");
     auto distance = std::distance(begin(iterator), {});
 
-    auto bar = logger->newProgressBar("Model", distance);
+    auto &bar = logger->newProgressBar("Model", distance);
     for (const auto &file: std::filesystem::directory_iterator("../models")) {
-        ++(*bar);
+        ++bar;
         if (file.path().extension() != ".obj") { continue; }
         logger->info("LOADING") << "Loading object: " << file.path();
         LOGGER_ENDL;
@@ -154,9 +154,9 @@ void Application::loadTextures()
     auto iterator = std::filesystem::directory_iterator("../textures");
     auto distance = std::distance(begin(iterator), end(iterator));
 
-    auto bar = logger->newProgressBar("Texture", distance);
+    auto &bar = logger->newProgressBar("Texture", distance);
     for (auto &f: std::filesystem::directory_iterator("../textures")) {
-        ++(*bar);
+        ++bar;
 
         logger->info("LOADING") << "Loading texture: " << f.path();
         LOGGER_ENDL;
