@@ -20,6 +20,7 @@ public:
     void processMouseMovement(float xoffset, float yoffset, bool bConstrainPitch = true);
 
 public:
+    bool isFreeFly = false;
     glm::vec3 vVelocity = {0, 0, 0};
     bool bOnFloor = true;
     float movementSpeed = SPEED;

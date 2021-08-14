@@ -13,15 +13,15 @@ Player::~Player() {}
 void Player::update(float fElapsedTime, float fGravity)
 {
     if (fGravity > 0) {
-        LOGGER_WARN << "fGravity is positive !" << fGravity;
+        LOGGER_WARN << "fGravity is positive ! : " << fGravity;
         LOGGER_ENDL;
     }
     position += vVelocity * fElapsedTime;
     vVelocity.x = 0;
     vVelocity.z = 0;
-    vVelocity.y += fGravity;
+    vVelocity.y += (isFreeFly) ? (-vVelocity.y) : (fGravity);
 
-    if (position.y < 6) {
+    if (position.y < 6 && !isFreeFly) {
         position.y = 6;
         vVelocity = glm::vec3(0);
         bOnFloor = true;
@@ -30,7 +30,7 @@ void Player::update(float fElapsedTime, float fGravity)
 
 void Player::processKeyboard(Movement direction)
 {
-    auto velocity = movementSpeed / ((bOnFloor == true) ? (1) : (1.1));
+    auto velocity = (isFreeFly) ? (50) : (movementSpeed / ((bOnFloor == true) ? (1) : (1.1)));
     switch (direction) {
         case Movement::FORWARD: {
             vVelocity.x += front.x * velocity;
@@ -49,7 +49,7 @@ void Player::processKeyboard(Movement direction)
             vVelocity.z -= right.z * velocity;
         } break;
         case Movement::UP: {
-            if (bOnFloor == true) {
+            if (bOnFloor || isFreeFly) {
                 bOnFloor = false;
                 vVelocity.y += jumpHeight;
             }

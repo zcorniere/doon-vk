@@ -293,11 +293,8 @@ void Application::run()
         }
 
         drawImgui();
-        if (!uiRessources.cameraParamettersOverride.bFlyingCam) {
-            player.update(fElapsedTime, -uiRessources.cameraParamettersOverride.fGravity);
-        } else {
-            player.update(fElapsedTime, 0.0f);
-        }
+        player.isFreeFly = uiRessources.cameraParamettersOverride.bFlyingCam;
+        player.update(fElapsedTime, -uiRessources.cameraParamettersOverride.fGravity);
         drawFrame();
         auto tp2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<float> elapsedTime(tp2 - tp1);
@@ -313,7 +310,7 @@ void Application::buildIndirectBuffers(Frame &frame)
     const auto &packedDraws = scene.getDrawBatch();
 
     for (uint32_t i = 0; i < packedDraws.size(); i++) {
-        const auto &mesh = loadedMeshes[packedDraws[i].meshId];
+        const auto &mesh = loadedMeshes.at(packedDraws[i].meshId);
 
         buffer[i].firstIndex = mesh.indicesOffset;
         buffer[i].indexCount = mesh.indicesSize;
@@ -515,6 +512,7 @@ void Application::drawImgui()
         ImGui::InputFloat("X", &player.position.x);
         ImGui::InputFloat("Y", &player.position.y);
         ImGui::InputFloat("Z", &player.position.x);
+
         ImGui::SliderFloat("FOV", &uiRessources.cameraParamettersOverride.fFOV, 0.f, 180.f);
         ImGui::InputFloat("Close clipping plane", &uiRessources.cameraParamettersOverride.fCloseClippingPlane);
         ImGui::InputFloat("Far clipping plane", &uiRessources.cameraParamettersOverride.fFarClippingPlane);
