@@ -9,6 +9,8 @@
 #include <filesystem>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <imgui.h>
 #include <math.h>
@@ -230,7 +232,7 @@ void Application::run()
                 .transform =
                     {
                         .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(0.0f, 0.0f, 0.0f)),
-                        .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+                        .rotation = glm::toMat4(glm::quat(glm::vec3(0, 0, 0))),
                         .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(1.0f)),
                     },
                 .textureIndex = 3,
@@ -243,7 +245,7 @@ void Application::run()
                 .transform =
                     {
                         .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(0.0f, 0.0f, 75.0f)),
-                        .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+                        .rotation = glm::toMat4(glm::quat(glm::vec3(0, 0, 0))),
                         .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(0.5f)),
                     },
                 .textureIndex = 1,
@@ -256,7 +258,7 @@ void Application::run()
                 .transform =
                     {
                         .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(-10.0f, 2.f, 0.0f)),
-                        .rotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+                        .rotation = glm::toMat4(glm::quat(glm::vec3(-(M_PI / 2), 0, 0))),
                         .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(2.0f)),
                     },
                 .textureIndex = 0,
@@ -497,8 +499,7 @@ void Application::drawImgui()
                             .transform =
                                 {
                                     .translation = glm::translate(glm::mat4{1.0f}, glm::vec3(-20.0f, 0.f, -20.0f)),
-                                    .rotation =
-                                        glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f)),
+                                    .rotation = glm::toMat4(glm::quat(glm::vec3(0, -(M_PI / 2), 0))),
                                     .scale = glm::scale(glm::mat4{1.0f}, glm::vec3(5.0f)),
                                 },
                             .textureIndex = 2,
