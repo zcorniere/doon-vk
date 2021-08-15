@@ -6,6 +6,7 @@
 #include <backends/imgui_impl_vulkan.h>
 #include <cstdint>
 #include <iterator>
+#include <numeric>
 #include <optional>
 #include <ostream>
 #include <set>
@@ -506,19 +507,24 @@ void VulkanApplication::createIndirectBuffer()
 }
 void VulkanApplication::createDescriptorPool()
 {
-    std::array<VkDescriptorPoolSize, 2> poolSizes{};
-
-    poolSizes.at(0).type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizes.at(0).descriptorCount = static_cast<uint32_t>(swapchain.nbOfImage());
-    poolSizes.at(1).type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes.at(1).descriptorCount = 100;
+    VkDescriptorPoolSize poolSize[] = {
+        {
+            .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .descriptorCount = MAX_FRAME_FRAME_IN_FLIGHT,
+        },
+        {
+            .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = 100,
+        },
+    };
 
     VkDescriptorPoolCreateInfo poolInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .pNext = nullptr,
-        .maxSets = static_cast<uint32_t>(swapchain.nbOfImage()),
-        .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
-        .pPoolSizes = poolSizes.data(),
+        .maxSets = static_cast<uint32_t>(std::accumulate(poolSize, poolSize + std::size(poolSize), 0,
+                                                         [](auto prev, auto &i) { return prev + i.descriptorCount; })),
+        .poolSizeCount = std::size(poolSize),
+        .pPoolSizes = poolSize,
     };
     VK_TRY(vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool));
     swapchainDeletionQueue.push([&]() { vkDestroyDescriptorPool(device, descriptorPool, nullptr); });
@@ -746,8 +752,8 @@ void VulkanApplication::createImgui()
         .Device = device,
         .Queue = graphicsQueue,
         .DescriptorPool = imguiPool,
-        .MinImageCount = 3,
-        .ImageCount = 3,
+        .MinImageCount = swapchain.nbOfImage(),
+        .ImageCount = swapchain.nbOfImage(),
         .MSAASamples = creationParameters.msaaSample,
     };
 
