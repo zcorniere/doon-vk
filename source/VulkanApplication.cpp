@@ -112,6 +112,8 @@ void VulkanApplication::initDebug()
     auto debugInfo = vk_init::populateDebugUtilsMessengerCreateInfoEXT(&VulkanApplication::debugCallback);
     VK_TRY(vkCreateDebugUtilsMessengerEXT(instance, &debugInfo, nullptr, &debugUtilsMessenger));
 
+    logger->warn("Validation Layers") << "Validation Layers are activated !";
+    LOGGER_ENDL;
     mainDeletionQueue.push([&]() { vkDestroyDebugUtilsMessengerEXT(instance, debugUtilsMessenger, nullptr); });
 }
 
@@ -798,6 +800,8 @@ void VulkanApplication::recreateSwapchain()
     createCommandBuffers();
     createImgui();
     logger->info("Swapchain") << "Swapchain recreation complete... { height=" << swapchain.getSwapchainExtent().height
-                              << ", width =" << swapchain.getSwapchainExtent().width << "}";
+                              << ", width =" << swapchain.getSwapchainExtent().width
+                              << ", number = " << swapchain.nbOfImage() << " }";
     LOGGER_ENDL;
+    ImGui_ImplVulkan_SetMinImageCount(swapchain.nbOfImage());
 }
