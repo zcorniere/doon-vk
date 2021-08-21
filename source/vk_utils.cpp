@@ -7,6 +7,8 @@
 
 namespace vk_utils
 {
+void vk_try(VkResult res) { VK_TRY(res); }
+
 std::vector<std::byte> readFile(const std::string &filename)
 {
     size_t fileSize = 0;

@@ -18,6 +18,7 @@
 
 namespace vk_utils
 {
+void vk_try(VkResult res);
 std::vector<std::byte> readFile(const std::string &filename);
 VkShaderModule createShaderModule(const VkDevice &device, const std::vector<std::byte> &code);
 VkFormat findSupportedFormat(VkPhysicalDevice &gpu, const std::vector<VkFormat> &candidates, VkImageTiling tiling,

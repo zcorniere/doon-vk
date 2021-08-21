@@ -757,6 +757,7 @@ void VulkanApplication::createImgui()
         .MinImageCount = swapchain.nbOfImage(),
         .ImageCount = swapchain.nbOfImage(),
         .MSAASamples = creationParameters.msaaSample,
+        .CheckVkResultFn = vk_utils::vk_try,
     };
 
     ImGui_ImplVulkan_Init(&init_info, renderPass);
