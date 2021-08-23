@@ -27,8 +27,8 @@ public:
     {
         return static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height);
     }
-    constexpr VkImage &getSwapchainImage(const unsigned index) { return swapChainImages.at(index); }
-    constexpr VkImageView &getSwapchainImageView(const unsigned index) { return swapChainImageViews.at(index); }
+    inline VkImage &getSwapchainImage(const unsigned index) { return swapChainImages.at(index); }
+    inline VkImageView &getSwapchainImageView(const unsigned index) { return swapChainImageViews.at(index); }
     constexpr const VkFormat &getSwapchainFormat() const { return swapChainImageFormat; }
     constexpr const VkExtent2D &getSwapchainExtent() const { return swapChainExtent; }
     constexpr const VkExtent3D getSwapchainExtent3D(uint32_t depth = 1) const

@@ -145,7 +145,7 @@ void Application::loadModel()
     vmaDestroyBuffer(allocator, stagingVertex.buffer, stagingVertex.memory);
     vmaDestroyBuffer(allocator, stagingIndex.buffer, stagingIndex.memory);
     logger->deleteProgressBar(bar);
-    applicationDeletionQueue.push([=]() {
+    applicationDeletionQueue.push([&]() {
         vmaDestroyBuffer(allocator, vertexBuffers.buffer, vertexBuffers.memory);
         vmaDestroyBuffer(allocator, indicesBuffers.buffer, indicesBuffers.memory);
     });

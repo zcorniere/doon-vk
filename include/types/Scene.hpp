@@ -18,8 +18,8 @@ public:
 public:
     Scene();
     ~Scene();
-    constexpr auto getNbOfObject() const { return sceneModels.size(); }
-    constexpr auto getObject(auto index) { return sceneModels.at(index); }
+    inline auto getNbOfObject() const { return sceneModels.size(); }
+    inline auto getObject(auto index) { return sceneModels.at(index); }
     inline void addObject(RenderObject &&obj)
     {
         sceneModels.push_back(obj);

@@ -766,7 +766,7 @@ void VulkanApplication::createImgui()
 
     ImGui_ImplVulkan_DestroyFontUploadObjects();
 
-    swapchainDeletionQueue.push([=]() {
+    swapchainDeletionQueue.push([=, this]() {
         vkDestroyDescriptorPool(device, imguiPool, nullptr);
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplGlfw_Shutdown();

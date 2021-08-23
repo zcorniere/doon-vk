@@ -19,7 +19,7 @@
 
 void VulkanApplication::copyBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, VkDeviceSize &size)
 {
-    immediateCommand([=](VkCommandBuffer &cmd) {
+    immediateCommand([=, this](VkCommandBuffer &cmd) {
         VkBufferCopy copyRegion{
             .srcOffset = 0,
             .dstOffset = 0,
@@ -30,7 +30,7 @@ void VulkanApplication::copyBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffe
 }
 void VulkanApplication::copyBufferToImage(const VkBuffer &srcBuffer, VkImage &dstImage, uint32_t width, uint32_t height)
 {
-    immediateCommand([=](VkCommandBuffer &cmd) {
+    immediateCommand([=, this](VkCommandBuffer &cmd) {
         VkBufferImageCopy region{
             .bufferOffset = 0,
             .bufferRowLength = 0,
