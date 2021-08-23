@@ -63,29 +63,25 @@ void VulkanApplication::framebufferResizeCallback(GLFWwindow *window, int, int)
     app->framebufferResized = true;
 }
 
-VkSampleCountFlagBits VulkanApplication::getMexUsableSampleCount(VkPhysicalDevice &physical_device)
+vk::SampleCountFlagBits VulkanApplication::getMexUsableSampleCount(vk::PhysicalDevice &physical_device)
 {
-    VkPhysicalDeviceProperties physicalDeviceProperties;
-    ::vkGetPhysicalDeviceProperties(physical_device, &physicalDeviceProperties);
+    vk::PhysicalDeviceProperties physicalDeviceProperties = physical_device.getProperties();
 
-    VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts &
-                                physicalDeviceProperties.limits.framebufferDepthSampleCounts;
-    if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
-    if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
-    if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
-    if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
-    if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
-    if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
+    vk::SampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts &
+                                  physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+    if (counts & vk::SampleCountFlagBits::e64) { return vk::SampleCountFlagBits::e64; }
+    if (counts & vk::SampleCountFlagBits::e32) { return vk::SampleCountFlagBits::e32; }
+    if (counts & vk::SampleCountFlagBits::e16) { return vk::SampleCountFlagBits::e16; }
+    if (counts & vk::SampleCountFlagBits::e8) { return vk::SampleCountFlagBits::e8; }
+    if (counts & vk::SampleCountFlagBits::e4) { return vk::SampleCountFlagBits::e4; }
+    if (counts & vk::SampleCountFlagBits::e2) { return vk::SampleCountFlagBits::e2; }
 
-    return VK_SAMPLE_COUNT_1_BIT;
+    return vk::SampleCountFlagBits::e1;
 }
 
 bool VulkanApplication::checkValiationLayerSupport()
 {
-    uint32_t layerCount;
-    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-    std::vector<VkLayerProperties> availableLayers(layerCount);
-    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+    auto availableLayers = vk::enumerateInstanceLayerProperties();
 
     for (const char *layerName: validationLayers) {
         bool layerFound = false;

@@ -3,16 +3,16 @@
 #include "types/AllocatedBuffer.hpp"
 
 #include <glm/glm.hpp>
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan.hpp>
 
 struct Frame {
-    VkSemaphore imageAvailableSemaphore;
-    VkSemaphore renderFinishedSemaphore;
-    VkFence inFlightFences;
+    vk::Semaphore imageAvailableSemaphore;
+    vk::Semaphore renderFinishedSemaphore;
+    vk::Fence inFlightFences;
     AllocatedBuffer indirectBuffer{};
     struct {
         AllocatedBuffer uniformBuffers{};
         AllocatedBuffer materialBuffer{};
-        VkDescriptorSet objectDescriptor = VK_NULL_HANDLE;
+        vk::DescriptorSet objectDescriptor = VK_NULL_HANDLE;
     } data = {};
 };

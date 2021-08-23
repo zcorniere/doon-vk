@@ -16,3 +16,6 @@
 [submodule "lib/logger-cpp"]
 	path = lib/logger-cpp
 	url = git@github.com:zcorniere/logger-cpp.git
+[submodule "lib/VulkanMemoryAllocator-Hpp"]
+	path = lib/VulkanMemoryAllocator-Hpp
+	url = git@github.com:malte-v/VulkanMemoryAllocator-Hpp.git

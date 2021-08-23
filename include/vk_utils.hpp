@@ -10,10 +10,10 @@
 
 #include "types/VulkanException.hpp"
 
-#define VK_TRY(x)                                \
-    {                                            \
-        VkResult err = x;                        \
-        if (err) { throw VulkanException(err); } \
+#define VK_TRY(x)                                                        \
+    {                                                                    \
+        vk::Result err = x;                                              \
+        if (err >= vk::Result::eSuccess) { throw VulkanException(err); } \
     }
 
 namespace vk_utils
@@ -24,17 +24,16 @@ concept is_copyable = requires
     std::is_standard_layout_v<T>;
     typename std::vector<T>;
 };
-
-void vk_try(VkResult res);
+void vk_try(vk::Result res);
 std::vector<std::byte> readFile(const std::string &filename);
-VkShaderModule createShaderModule(const VkDevice &device, const std::vector<std::byte> &code);
-VkFormat findSupportedFormat(VkPhysicalDevice &gpu, const std::vector<VkFormat> &candidates, VkImageTiling tiling,
-                             VkFormatFeatureFlags features);
-bool hasStencilComponent(VkFormat format);
-uint32_t findMemoryType(VkPhysicalDevice &physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);
+vk::ShaderModule createShaderModule(const vk::Device &device, const std::vector<std::byte> &code);
+vk::Format findSupportedFormat(vk::PhysicalDevice &gpu, const std::vector<vk::Format> &candidates,
+                               vk::ImageTiling tiling, vk::FormatFeatureFlags features);
+bool hasStencilComponent(vk::Format format);
+uint32_t findMemoryType(vk::PhysicalDevice &physicalDevice, uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
 template <class... FailedValue>
-bool isSwapchainInvalid(const VkResult result, const FailedValue... failedResult)
+bool isSwapchainInvalid(const vk::Result result, const FailedValue... failedResult)
 {
     if (((result == failedResult) || ...)) {
         return true;
@@ -43,13 +42,13 @@ bool isSwapchainInvalid(const VkResult result, const FailedValue... failedResult
         return false;
     }
 }
-std::vector<VkPhysicalDevice> getPhysicalDevices(VkInstance &instance);
+std::vector<vk::PhysicalDevice> getPhysicalDevices(vk::Instance &instance);
 
 namespace tools
 {
-    const std::string to_string(VkSampleCountFlagBits count);
-    const std::string to_string(VkCullModeFlags count);
+    const std::string to_string(vk::SampleCountFlagBits count);
+    const std::string to_string(vk::CullModeFlagBits count);
 
-    std::string physicalDeviceTypeString(VkPhysicalDeviceType type);
+    std::string physicalDeviceTypeString(vk::PhysicalDeviceType type);
 }    // namespace tools
 }    // namespace vk_utils

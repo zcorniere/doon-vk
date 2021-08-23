@@ -34,7 +34,6 @@ add_subdirectory(lib)
 add_executable(${PROJECT_NAME} source/main.cpp
                                source/Window.cpp
                                source/VulkanException.cpp
-                               source/VulkanLoader.cpp
                                source/VulkanApplication.cpp
                                source/VulkanApplication_helpers.cpp
                                source/VulkanApplication_static.cpp
@@ -66,6 +65,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
   -DGLFW_INCLUDE_VULKAN
   -DMAX_PROJECTION_LIMIT=200.0f
   -DLOGGER_EXTERN_DECLARATION_PTR
+  -DVULKAN_HPP_NO_CONSTRUCTORS
 )
 
 if(MSVC)
@@ -75,6 +75,7 @@ else()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE include/)
+target_include_directories(${PROJECT_NAME} PRIVATE lib/VulkanMemoryAllocator-Hpp/)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan)
 target_link_libraries(${PROJECT_NAME} PRIVATE stb

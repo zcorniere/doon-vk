@@ -1,9 +1,10 @@
 #include "types/VulkanException.hpp"
 
-std::string VulkanException::errorString(VkResult errorCode)
+std::string VulkanException::errorString(vk::Result errorCode)
 
 {
-    switch (errorCode) {
+    VkResult result = static_cast<VkResult>(errorCode);
+    switch (result) {
 #define STR(r) \
     case VK_##r: return #r
         STR(NOT_READY);
@@ -31,6 +32,6 @@ std::string VulkanException::errorString(VkResult errorCode)
         STR(ERROR_INVALID_SHADER_NV);
         STR(ERROR_OUT_OF_POOL_MEMORY);
 #undef STR
-        default: return "UNKNOWN_ERROR: " + std::to_string(errorCode);
+        default: return "UNKNOWN_ERROR: " + std::to_string(result);
     }
 }

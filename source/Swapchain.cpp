@@ -16,7 +16,7 @@ Swapchain::Swapchain() {}
 
 Swapchain::~Swapchain() {}
 
-void Swapchain::init(Window &win, VkPhysicalDevice &gpu, VkDevice &device, VkSurfaceKHR &surface)
+void Swapchain::init(Window &win, vk::PhysicalDevice &gpu, vk::Device &device, vk::SurfaceKHR &surface)
 {
     DEBUG_FUNCTION
     createSwapchain(win, gpu, device, surface);
@@ -26,7 +26,7 @@ void Swapchain::init(Window &win, VkPhysicalDevice &gpu, VkDevice &device, VkSur
 
 void Swapchain::destroy() { chainDeletionQueue.flush(); }
 
-void Swapchain::recreate(Window &win, VkPhysicalDevice &gpu, VkDevice &device, VkSurfaceKHR &surface)
+void Swapchain::recreate(Window &win, vk::PhysicalDevice &gpu, vk::Device &device, vk::SurfaceKHR &surface)
 {
     DEBUG_FUNCTION
     this->destroy();
@@ -36,11 +36,11 @@ void Swapchain::recreate(Window &win, VkPhysicalDevice &gpu, VkDevice &device, V
 uint32_t Swapchain::nbOfImage() const
 {
     if (swapChainImages.size() != swapChainImageViews.size()) [[unlikely]]
-        throw std::length_error("swapchain has different ammout of VkImage and VkImageView");
+        throw std::length_error("swapchain has different ammout of vk::Image and vk::ImageView");
     return swapChainImages.size();
 }
 
-void Swapchain::createSwapchain(Window &window, VkPhysicalDevice &gpu, VkDevice &device, VkSurfaceKHR &surface)
+void Swapchain::createSwapchain(Window &window, vk::PhysicalDevice &gpu, vk::Device &device, vk::SurfaceKHR &surface)
 {
     DEBUG_FUNCTION
     auto indices = QueueFamilyIndices::findQueueFamilies(gpu, surface);
@@ -54,18 +54,16 @@ void Swapchain::createSwapchain(Window &window, VkPhysicalDevice &gpu, VkDevice 
         imageCount = swapChainSupport.capabilities.maxImageCount;
     }
 
-    VkSwapchainCreateInfoKHR createInfo{
-        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-        .pNext = nullptr,
+    vk::SwapchainCreateInfoKHR createInfo{
         .surface = surface,
         .minImageCount = imageCount,
         .imageFormat = surfaceFormat.format,
         .imageColorSpace = surfaceFormat.colorSpace,
         .imageExtent = extent,
         .imageArrayLayers = 1,
-        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
         .preTransform = swapChainSupport.capabilities.currentTransform,
-        .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
         .presentMode = presentMode,
         .clipped = VK_TRUE,
         .oldSwapchain = nullptr,
@@ -73,38 +71,37 @@ void Swapchain::createSwapchain(Window &window, VkPhysicalDevice &gpu, VkDevice 
     uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
 
     if (indices.graphicsFamily != indices.presentFamily) {
-        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        createInfo.imageSharingMode = vk::SharingMode::eConcurrent;
         createInfo.queueFamilyIndexCount = 2;
         createInfo.pQueueFamilyIndices = queueFamilyIndices;
     } else {
-        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        createInfo.imageSharingMode = vk::SharingMode::eExclusive;
         createInfo.queueFamilyIndexCount = 0;        // Optional
         createInfo.pQueueFamilyIndices = nullptr;    // Optional
     }
-    VK_TRY(vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain));
-    chainDeletionQueue.push([&]() { vkDestroySwapchainKHR(device, swapChain, nullptr); });
+
+    swapChain = device.createSwapchainKHR(createInfo);
+    chainDeletionQueue.push([&]() { device.destroy(swapChain); });
     swapChainImageFormat = surfaceFormat.format;
     swapChainExtent = extent;
 }
 
-void Swapchain::getImages(VkDevice &device)
+void Swapchain::getImages(vk::Device &device)
 {
-    DEBUG_FUNCTION
-    uint32_t imageCount = 0;
-
-    vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
-    swapChainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(device, swapChain, &imageCount, swapChainImages.data());
+    DEBUG_FUNCTION swapChainImages = device.getSwapchainImagesKHR(swapChain);
 }
 
-void Swapchain::createImageViews(VkDevice &device)
+void Swapchain::createImageViews(vk::Device &device)
 {
     DEBUG_FUNCTION
     swapChainImageViews.resize(swapChainImages.size());
 
     for (size_t i = 0; i < swapChainImages.size(); ++i) {
-        auto createInfo = vk_init::populateVkImageViewCreateInfo(swapChainImages[i], swapChainImageFormat);
-        VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &swapChainImageViews[i]));
+        vk::ImageViewCreateInfo createInfo{
+            .image = swapChainImages[i],
+            .format = swapChainImageFormat,
+        };
+        swapChainImageViews.at(i) = device.createImageView(createInfo);
     }
     chainDeletionQueue.push([&]() {
         for (auto &imageView: swapChainImageViews) { vkDestroyImageView(device, imageView, nullptr); }

@@ -30,6 +30,22 @@
 #define MAX_COMMANDS 100
 #define MAX_MATERIALS 100
 
+PFN_vkCreateDebugUtilsMessengerEXT pfnVkCreateDebugUtilsMessengerEXT;
+PFN_vkDestroyDebugUtilsMessengerEXT pfnVkDestroyDebugUtilsMessengerEXT;
+VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugUtilsMessengerEXT(VkInstance instance,
+                                                              const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
+                                                              const VkAllocationCallbacks *pAllocator,
+                                                              VkDebugUtilsMessengerEXT *pMessenger)
+{
+    return pfnVkCreateDebugUtilsMessengerEXT(instance, pCreateInfo, pAllocator, pMessenger);
+}
+
+VKAPI_ATTR void VKAPI_CALL vkDestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT messenger,
+                                                           VkAllocationCallbacks const *pAllocator)
+{
+    return pfnVkDestroyDebugUtilsMessengerEXT(instance, messenger, pAllocator);
+}
+
 VulkanApplication::VulkanApplication(): window("Vulkan", 800, 600)
 {
     DEBUG_FUNCTION
@@ -40,7 +56,7 @@ VulkanApplication::VulkanApplication(): window("Vulkan", 800, 600)
 VulkanApplication::~VulkanApplication()
 {
     DEBUG_FUNCTION
-    if (device != VK_NULL_HANDLE) vkDeviceWaitIdle(device);
+    if (device) device.waitIdle();
     swapchain.destroy();
     swapchainDeletionQueue.flush();
     mainDeletionQueue.flush();
@@ -90,55 +106,56 @@ void VulkanApplication::initInstance()
     auto debugInfo = vk_init::populateDebugUtilsMessengerCreateInfoEXT(&VulkanApplication::debugCallback);
     auto extensions = getRequiredExtensions(enableValidationLayers);
 
-    VkApplicationInfo applicationInfo{
-        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+    vk::ApplicationInfo applicationInfo{
         .apiVersion = VK_API_VERSION_1_2,
     };
-    VkInstanceCreateInfo createInfo{
-        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        .pNext = nullptr,
+    vk::InstanceCreateInfo createInfo{
         .pApplicationInfo = &applicationInfo,
         .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
         .ppEnabledExtensionNames = extensions.data(),
     };
     if (enableValidationLayers) {
-        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT *)&debugInfo;
+        createInfo.pNext = (vk::DebugUtilsMessengerCreateInfoEXT *)&debugInfo;
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
         createInfo.ppEnabledLayerNames = validationLayers.data();
     }
-
-    this->createInstance(createInfo);
+    instance = vk::createInstance(createInfo);
+    mainDeletionQueue.push([&] { instance.destroy(); });
 }
 
 void VulkanApplication::initDebug()
 {
     DEBUG_FUNCTION
     if (!enableValidationLayers) return;
-
     auto debugInfo = vk_init::populateDebugUtilsMessengerCreateInfoEXT(&VulkanApplication::debugCallback);
-    VK_TRY(vkCreateDebugUtilsMessengerEXT(instance, &debugInfo, nullptr, &debugUtilsMessenger));
 
+    pfnVkCreateDebugUtilsMessengerEXT =
+        reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(instance.getProcAddr("vkCreateDebugUtilsMessengerEXT"));
+    pfnVkDestroyDebugUtilsMessengerEXT =
+        reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(instance.getProcAddr("vkDestroyDebugUtilsMessengerEXT"));
+
+    instance.createDebugUtilsMessengerEXT(debugInfo);
     logger->warn("Validation Layers") << "Validation Layers are activated !";
     LOGGER_ENDL;
-    mainDeletionQueue.push([&]() { vkDestroyDebugUtilsMessengerEXT(instance, debugUtilsMessenger, nullptr); });
+    mainDeletionQueue.push([&] { instance.destroyDebugUtilsMessengerEXT(debugUtilsMessenger); });
 }
 
 void VulkanApplication::pickPhysicalDevice()
 {
     DEBUG_FUNCTION
     for (const auto &device: vk_utils::getPhysicalDevices(instance)) {
-        if (isDeviceSuitable(device, surface)) {
+        // if (isDeviceSuitable(device, surface)) {
+        if (true) {
             physical_device = device;
             maxMsaaSample = getMexUsableSampleCount(physical_device);
             creationParameters.msaaSample = maxMsaaSample;
             break;
         }
     }
-    if (physical_device == VK_NULL_HANDLE) {
+    if (!physical_device) {
         throw VulkanException("failed to find suitable GPU");
     } else {
-        VkPhysicalDeviceProperties deviceProperties;
-        vkGetPhysicalDeviceProperties(physical_device, &deviceProperties);
+        vk::PhysicalDeviceProperties deviceProperties = physical_device.getProperties();
         logger->info(vk_utils::tools::physicalDeviceTypeString(deviceProperties.deviceType))
             << deviceProperties.deviceName;
         LOGGER_ENDL;
@@ -149,7 +166,7 @@ void VulkanApplication::initSurface()
 {
     DEBUG_FUNCTION
     window.createSurface(instance, &surface);
-    mainDeletionQueue.push([&]() { vkDestroySurfaceKHR(instance, surface, nullptr); });
+    mainDeletionQueue.push([&] { instance.destroy(surface); });
 }
 
 void VulkanApplication::createLogicalDevice()
@@ -157,33 +174,33 @@ void VulkanApplication::createLogicalDevice()
     DEBUG_FUNCTION
     float fQueuePriority = 1.0f;
     auto indices = QueueFamilyIndices::findQueueFamilies(physical_device, surface);
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
     std::set<uint32_t> uniqueQueueFamilies{indices.graphicsFamily.value(), indices.presentFamily.value()};
 
     for (const uint32_t queueFamily: uniqueQueueFamilies) {
-        queueCreateInfos.push_back(vk_init::populateDeviceQueueCreateInfo(1, queueFamily, fQueuePriority));
+        queueCreateInfos.push_back({
+            .queueFamilyIndex = 1,
+            .queueCount = queueFamily,
+            .pQueuePriorities = &fQueuePriority,
+        });
     }
 
-    VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndex{
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
-        .pNext = nullptr,
+    vk::PhysicalDeviceDescriptorIndexingFeatures descriptorIndex{
         .shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
         .descriptorBindingPartiallyBound = VK_TRUE,
         .descriptorBindingVariableDescriptorCount = VK_TRUE,
         .runtimeDescriptorArray = VK_TRUE,
     };
-    VkPhysicalDeviceVulkan11Features v11Features{
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+    vk::PhysicalDeviceVulkan11Features v11Features{
         .pNext = &descriptorIndex,
         .shaderDrawParameters = VK_TRUE,
     };
 
-    VkPhysicalDeviceFeatures deviceFeature{
+    vk::PhysicalDeviceFeatures deviceFeature{
         .fillModeNonSolid = VK_TRUE,
         .samplerAnisotropy = VK_TRUE,
     };
-    VkDeviceCreateInfo createInfo{
-        .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+    vk::DeviceCreateInfo createInfo{
         .pNext = &v11Features,
         .queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size()),
         .pQueueCreateInfos = queueCreateInfos.data(),
@@ -191,93 +208,93 @@ void VulkanApplication::createLogicalDevice()
         .ppEnabledExtensionNames = deviceExtensions.data(),
         .pEnabledFeatures = &deviceFeature,
     };
-    VK_TRY(vkCreateDevice(physical_device, &createInfo, nullptr, &device));
-    mainDeletionQueue.push([=]() { vkDestroyDevice(device, nullptr); });
+    device = physical_device.createDevice(createInfo);
+    mainDeletionQueue.push([=] { device.destroy(); });
 
-    vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
-    vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
+    graphicsQueue = device.getQueue(indices.graphicsFamily.value(), 0);
+    presentQueue = device.getQueue(indices.presentFamily.value(), 0);
 }
 
 void VulkanApplication::createAllocator()
 {
     DEBUG_FUNCTION
-    VmaAllocatorCreateInfo allocatorInfo{
-        .physicalDevice = physical_device,
-        .device = device,
-        .instance = instance,
-        .vulkanApiVersion = VK_API_VERSION_1_2,
-    };
-    VK_TRY(vmaCreateAllocator(&allocatorInfo, &allocator));
-    mainDeletionQueue.push([&]() { vmaDestroyAllocator(allocator); });
+    vma::AllocatorCreateInfo allocatorInfo{};
+    allocatorInfo.physicalDevice = physical_device;
+    allocatorInfo.device = device;
+    allocatorInfo.instance = instance;
+    allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_2;
+
+    allocator = vma::createAllocator(allocatorInfo);
+    mainDeletionQueue.push([&] { allocator.destroy(); });
 }
 
 void VulkanApplication::createRenderPass()
 {
     DEBUG_FUNCTION
-    VkAttachmentDescription colorAttachment{
+    vk::AttachmentDescription colorAttachment{
         .format = swapchain.getSwapchainFormat(),
         .samples = creationParameters.msaaSample,
-        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .loadOp = vk::AttachmentLoadOp::eClear,
+        .storeOp = vk::AttachmentStoreOp::eDontCare,
+        .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+        .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+        .initialLayout = vk::ImageLayout::eUndefined,
+        .finalLayout = vk::ImageLayout::eColorAttachmentOptimal,
     };
-    VkAttachmentDescription depthAttachment{
+    vk::AttachmentDescription depthAttachment{
         .format = vk_utils::findSupportedFormat(
-            physical_device, {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
-            VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT),
+            physical_device, {vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint},
+            vk::ImageTiling::eOptimal, vk::FormatFeatureFlagBits::eDepthStencilAttachment),
         .samples = creationParameters.msaaSample,
-        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        .loadOp = vk::AttachmentLoadOp::eClear,
+        .storeOp = vk::AttachmentStoreOp::eDontCare,
+        .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+        .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+        .initialLayout = vk::ImageLayout::eUndefined,
+        .finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal,
     };
-    VkAttachmentDescription colorAttachmentResolve{
+    vk::AttachmentDescription colorAttachmentResolve{
         .format = swapchain.getSwapchainFormat(),
-        .samples = VK_SAMPLE_COUNT_1_BIT,
-        .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        .samples = vk::SampleCountFlagBits::e1,
+        .loadOp = vk::AttachmentLoadOp::eDontCare,
+        .storeOp = vk::AttachmentStoreOp::eStore,
+        .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+        .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+        .initialLayout = vk::ImageLayout::eUndefined,
+        .finalLayout = vk::ImageLayout::ePresentSrcKHR,
     };
-    VkAttachmentReference colorAttachmentRef{
+    vk::AttachmentReference colorAttachmentRef{
         .attachment = 0,
-        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .layout = vk::ImageLayout::eColorAttachmentOptimal,
     };
-    VkAttachmentReference depthAttachmentRef{
+    vk::AttachmentReference depthAttachmentRef{
         .attachment = 1,
-        .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        .layout = vk::ImageLayout::eDepthStencilAttachmentOptimal,
     };
-    VkAttachmentReference colorAttachmentResolveRef{
+    vk::AttachmentReference colorAttachmentResolveRef{
         .attachment = 2,
-        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .layout = vk::ImageLayout::eColorAttachmentOptimal,
     };
-    VkSubpassDescription subpass{
-        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vk::SubpassDescription subpass{
+        .pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
         .colorAttachmentCount = 1,
         .pColorAttachments = &colorAttachmentRef,
         .pResolveAttachments = &colorAttachmentResolveRef,
         .pDepthStencilAttachment = &depthAttachmentRef,
     };
-    VkSubpassDependency dependency{
+    vk::SubpassDependency dependency{
         .srcSubpass = VK_SUBPASS_EXTERNAL,
         .dstSubpass = 0,
-        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-        .srcAccessMask = 0,
-        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        .srcStageMask =
+            vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
+        .dstStageMask =
+            vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
+        .srcAccessMask = vk::AccessFlagBits::eNoneKHR,
+        .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite,
     };
 
-    std::array<VkAttachmentDescription, 3> attachments = {colorAttachment, depthAttachment, colorAttachmentResolve};
-    VkRenderPassCreateInfo renderPassInfo{
-        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-        .pNext = nullptr,
+    std::array<vk::AttachmentDescription, 3> attachments = {colorAttachment, depthAttachment, colorAttachmentResolve};
+    vk::RenderPassCreateInfo renderPassInfo{
         .attachmentCount = static_cast<uint32_t>(attachments.size()),
         .pAttachments = attachments.data(),
         .subpassCount = 1,
@@ -285,8 +302,9 @@ void VulkanApplication::createRenderPass()
         .dependencyCount = 1,
         .pDependencies = &dependency,
     };
-    VK_TRY(vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass));
-    swapchainDeletionQueue.push([&]() { vkDestroyRenderPass(device, renderPass, nullptr); });
+    renderPass = device.createRenderPass(renderPassInfo);
+
+    swapchainDeletionQueue.push([&] { device.destroy(renderPass); });
 }
 void VulkanApplication::createGraphicsPipeline()
 {
@@ -297,26 +315,35 @@ void VulkanApplication::createGraphicsPipeline()
     auto vertShaderModule = vk_utils::createShaderModule(device, vertShaderCode);
     auto fragShaderModule = vk_utils::createShaderModule(device, fragShaderCode);
 
-    std::vector<VkPushConstantRange> pipelinePushConstant = {
-        vk_init::populateVkPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                                             sizeof(Camera::GPUCameraData)),
+    std::vector<vk::PushConstantRange> pipelinePushConstant = {
+        vk::PushConstantRange{
+            .stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
+            .offset = 0,
+            .size = sizeof(Camera::GPUCameraData),
+        },
     };
-    std::vector<VkDescriptorSetLayout> setLayout = {descriptorSetLayout, texturesSetLayout};
-    auto pipelineLayoutCreateInfo = vk_init::populateVkPipelineLayoutCreateInfo(setLayout, pipelinePushConstant);
-    VK_TRY(vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout));
 
-    std::vector<VkVertexInputBindingDescription> binding = {Vertex::getBindingDescription()};
-    std::vector<VkVertexInputAttributeDescription> attribute = Vertex::getAttributeDescriptons();
+    std::vector<vk::DescriptorSetLayout> setLayout = {descriptorSetLayout, texturesSetLayout};
+    vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo{
+        .setLayoutCount = static_cast<uint32_t>(setLayout.size()),
+        .pSetLayouts = setLayout.data(),
+        .pushConstantRangeCount = static_cast<uint32_t>(pipelinePushConstant.size()),
+        .pPushConstantRanges = pipelinePushConstant.data(),
+    };
+    pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+
+    std::vector<vk::VertexInputBindingDescription> binding = {Vertex::getBindingDescription()};
+    std::vector<vk::VertexInputAttributeDescription> attribute = Vertex::getAttributeDescriptons();
 
     PipelineBuilder builder;
     builder.pipelineLayout = pipelineLayout;
     builder.shaderStages.push_back(
-        vk_init::populateVkPipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertShaderModule));
+        vk_init::populateVkPipelineShaderStageCreateInfo(vk::ShaderStageFlagBits::eVertex, vertShaderModule));
     builder.shaderStages.push_back(
-        vk_init::populateVkPipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragShaderModule));
+        vk_init::populateVkPipelineShaderStageCreateInfo(vk::ShaderStageFlagBits::eFragment, fragShaderModule));
     builder.vertexInputInfo = vk_init::populateVkPipelineVertexInputStateCreateInfo(binding, attribute);
     builder.inputAssembly =
-        vk_init::populateVkPipelineInputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE);
+        vk_init::populateVkPipelineInputAssemblyCreateInfo(vk::PrimitiveTopology::eTriangleList, VK_FALSE);
     builder.multisampling = vk_init::populateVkPipelineMultisampleStateCreateInfo(creationParameters.msaaSample);
     builder.depthStencil = vk_init::populateVkPipelineDepthStencilStateCreateInfo();
     builder.viewport.x = 0.0f;
@@ -325,19 +352,19 @@ void VulkanApplication::createGraphicsPipeline()
     builder.viewport.height = swapchain.getSwapchainExtent().height;
     builder.viewport.minDepth = 0.0f;
     builder.viewport.maxDepth = 1.0f;
-    builder.scissor.offset = {0, 0};
+    builder.scissor.offset = vk::Offset2D{0, 0};
     builder.scissor.extent = swapchain.getSwapchainExtent();
     builder.colorBlendAttachment = vk_init::populateVkPipelineColorBlendAttachmentState();
     builder.rasterizer = vk_init::populateVkPipelineRasterizationStateCreateInfo(creationParameters.polygonMode);
     builder.rasterizer.cullMode = creationParameters.cullMode;
-    builder.rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    builder.rasterizer.frontFace = vk::FrontFace::eCounterClockwise;
     graphicsPipeline = builder.build(device, renderPass);
 
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
-    swapchainDeletionQueue.push([&]() {
-        vkDestroyPipeline(device, graphicsPipeline, nullptr);
-        vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+    swapchainDeletionQueue.push([&] {
+        device.destroy(graphicsPipeline);
+        device.destroy(pipelineLayout);
     });
 }
 
@@ -346,11 +373,10 @@ void VulkanApplication::createFramebuffers()
     DEBUG_FUNCTION
     swapChainFramebuffers.resize(swapchain.nbOfImage());
     for (size_t i = 0; i < swapchain.nbOfImage(); i++) {
-        std::array<VkImageView, 3> attachments = {colorImage.imageView, depthResources.imageView,
-                                                  swapchain.getSwapchainImageView(i)};
+        std::array<vk::ImageView, 3> attachments = {colorImage.imageView, depthResources.imageView,
+                                                    swapchain.getSwapchainImageView(i)};
 
-        VkFramebufferCreateInfo framebufferInfo{
-            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+        vk::FramebufferCreateInfo framebufferInfo{
             .renderPass = renderPass,
             .attachmentCount = static_cast<uint32_t>(attachments.size()),
             .pAttachments = attachments.data(),
@@ -359,10 +385,10 @@ void VulkanApplication::createFramebuffers()
             .layers = 1,
         };
 
-        VK_TRY(vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]));
+        device.createFramebuffer(framebufferInfo);
     }
-    swapchainDeletionQueue.push([&]() {
-        for (auto &framebuffer: swapChainFramebuffers) { vkDestroyFramebuffer(device, framebuffer, nullptr); }
+    swapchainDeletionQueue.push([&] {
+        for (auto &framebuffer: swapChainFramebuffers) { device.destroy(framebuffer); }
     });
 }
 
@@ -370,68 +396,52 @@ void VulkanApplication::createCommandPool()
 {
     DEBUG_FUNCTION
     auto indices = QueueFamilyIndices::findQueueFamilies(physical_device, surface);
-    VkCommandPoolCreateInfo poolInfo{
-        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        .pNext = nullptr,
-        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+    vk::CommandPoolCreateInfo poolInfo{
+        .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
         .queueFamilyIndex = indices.graphicsFamily.value(),
     };
-    VK_TRY(vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool));
-    VK_TRY(vkCreateCommandPool(device, &poolInfo, nullptr, &uploadContext.commandPool));
-    mainDeletionQueue.push([&]() {
-        vkDestroyCommandPool(device, uploadContext.commandPool, nullptr);
-        vkDestroyCommandPool(device, commandPool, nullptr);
+    commandPool = device.createCommandPool(poolInfo);
+    uploadContext.commandPool = device.createCommandPool(poolInfo);
+    mainDeletionQueue.push([&] {
+        device.destroy(uploadContext.commandPool);
+        device.destroy(commandPool);
     });
 }
 
 void VulkanApplication::createCommandBuffers()
 {
     DEBUG_FUNCTION
-    commandBuffers.resize(swapChainFramebuffers.size());
-
-    VkCommandBufferAllocateInfo allocInfo{
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .pNext = nullptr,
+    vk::CommandBufferAllocateInfo allocInfo{
         .commandPool = commandPool,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = static_cast<uint32_t>(commandBuffers.size()),
+        .level = vk::CommandBufferLevel::ePrimary,
+        .commandBufferCount = static_cast<uint32_t>(swapchain.nbOfImage()),
     };
-    VK_TRY(vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data()));
-    swapchainDeletionQueue.push(
-        [&]() { vkFreeCommandBuffers(device, commandPool, commandBuffers.size(), commandBuffers.data()); });
+    commandBuffers = device.allocateCommandBuffers(allocInfo);
+    swapchainDeletionQueue.push([&] { device.free(commandPool, commandBuffers); });
 }
 
 void VulkanApplication::createSyncObjects()
 {
     DEBUG_FUNCTION
-    VkSemaphoreCreateInfo semaphoreInfo{
-        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-        .pNext = nullptr,
+    vk::SemaphoreCreateInfo semaphoreInfo{};
+    vk::FenceCreateInfo fenceInfo{
+        .flags = vk::FenceCreateFlagBits::eSignaled,
     };
-    VkFenceCreateInfo fenceInfo{
-        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-        .pNext = nullptr,
-        .flags = VK_FENCE_CREATE_SIGNALED_BIT,
-    };
-    VkFenceCreateInfo uploadFenceInfo{
-        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-        .pNext = nullptr,
-        .flags = 0,
-    };
+    vk::FenceCreateInfo uploadFenceInfo{};
 
-    VK_TRY(vkCreateFence(device, &uploadFenceInfo, nullptr, &uploadContext.uploadFence));
+    uploadContext.uploadFence = device.createFence(uploadFenceInfo);
     for (auto &f: frames) {
-        VK_TRY(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &f.imageAvailableSemaphore));
-        VK_TRY(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &f.renderFinishedSemaphore));
-        VK_TRY(vkCreateFence(device, &fenceInfo, nullptr, &f.inFlightFences));
+        f.imageAvailableSemaphore = device.createSemaphore(semaphoreInfo);
+        f.renderFinishedSemaphore = device.createSemaphore(semaphoreInfo);
+        f.inFlightFences = device.createFence(fenceInfo);
     }
 
-    mainDeletionQueue.push([&]() {
-        vkDestroyFence(device, uploadContext.uploadFence, nullptr);
+    mainDeletionQueue.push([&] {
+        device.destroy(uploadContext.uploadFence);
         for (auto &f: frames) {
-            vkDestroyFence(device, f.inFlightFences, nullptr);
-            vkDestroySemaphore(device, f.renderFinishedSemaphore, nullptr);
-            vkDestroySemaphore(device, f.imageAvailableSemaphore, nullptr);
+            device.destroy(f.inFlightFences);
+            device.destroy(f.renderFinishedSemaphore);
+            device.destroy(f.imageAvailableSemaphore);
         }
     });
 }
@@ -439,62 +449,56 @@ void VulkanApplication::createSyncObjects()
 void VulkanApplication::createDescriptorSetLayout()
 {
     DEBUG_FUNCTION
-    VkDescriptorSetLayoutBinding uboLayoutBinding{
+    vk::DescriptorSetLayoutBinding uboLayoutBinding{
         .binding = 0,
-        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        .descriptorType = vk::DescriptorType::eStorageBuffer,
         .descriptorCount = 1,
-        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .stageFlags = vk::ShaderStageFlagBits::eVertex,
         .pImmutableSamplers = nullptr,
     };
-    VkDescriptorSetLayoutBinding materialBinding{
+    vk::DescriptorSetLayoutBinding materialBinding{
         .binding = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        .descriptorType = vk::DescriptorType::eStorageBuffer,
         .descriptorCount = 1,
-        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .stageFlags = vk::ShaderStageFlagBits::eFragment,
         .pImmutableSamplers = nullptr,
     };
 
-    std::vector<VkDescriptorSetLayoutBinding> bindings = {uboLayoutBinding, materialBinding};
-    VkDescriptorSetLayoutCreateInfo layoutInfo{
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-        .pNext = nullptr,
+    std::vector<vk::DescriptorSetLayoutBinding> bindings = {uboLayoutBinding, materialBinding};
+    vk::DescriptorSetLayoutCreateInfo layoutInfo{
         .bindingCount = static_cast<uint32_t>(bindings.size()),
         .pBindings = bindings.data(),
     };
 
-    VK_TRY(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout));
-
-    mainDeletionQueue.push([&]() { vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr); });
+    descriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+    mainDeletionQueue.push([&] { device.destroy(descriptorSetLayout); });
 }
 
 void VulkanApplication::createTextureDescriptorSetLayout()
 {
     DEBUG_FUNCTION
-    std::vector<VkDescriptorBindingFlags> flags{
-        VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
+    std::vector<vk::DescriptorBindingFlags> flags{
+        vk::DescriptorBindingFlagBits::eVariableDescriptorCount | vk::DescriptorBindingFlagBits::ePartiallyBound,
     };
 
-    VkDescriptorSetLayoutBindingFlagsCreateInfo bindingInfo{
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
-        .pNext = nullptr,
+    vk::DescriptorSetLayoutBindingFlagsCreateInfo bindingInfo{
         .bindingCount = static_cast<uint32_t>(flags.size()),
         .pBindingFlags = flags.data(),
     };
-    VkDescriptorSetLayoutBinding samplerLayoutBiding{
+    vk::DescriptorSetLayoutBinding samplerLayoutBiding{
         .binding = 0,
-        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .descriptorType = vk::DescriptorType::eCombinedImageSampler,
         .descriptorCount = 32,
-        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .stageFlags = vk::ShaderStageFlagBits::eFragment,
         .pImmutableSamplers = nullptr,
     };
-    VkDescriptorSetLayoutCreateInfo texturesSetLayoutInfo{
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    vk::DescriptorSetLayoutCreateInfo texturesSetLayoutInfo{
         .pNext = &bindingInfo,
         .bindingCount = 1,
         .pBindings = &samplerLayoutBiding,
     };
-    VK_TRY(vkCreateDescriptorSetLayout(device, &texturesSetLayoutInfo, nullptr, &texturesSetLayout));
-    mainDeletionQueue.push([&]() { vkDestroyDescriptorSetLayout(device, texturesSetLayout, nullptr); });
+    texturesSetLayout = device.createDescriptorSetLayout(texturesSetLayoutInfo);
+    mainDeletionQueue.push([&] { device.destroy(texturesSetLayout); });
 }
 
 void VulkanApplication::createUniformBuffers()
@@ -502,14 +506,14 @@ void VulkanApplication::createUniformBuffers()
     DEBUG_FUNCTION
     for (auto &f: frames) {
         f.data.uniformBuffers = createBuffer(sizeof(gpuObject::UniformBufferObject) * MAX_OBJECT,
-                                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                             vk::BufferUsageFlagBits::eStorageBuffer, vma::MemoryUsage::eCpuToGpu);
         f.data.materialBuffer = createBuffer(sizeof(gpuObject::Material) * MAX_MATERIALS,
-                                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                             vk::BufferUsageFlagBits::eStorageBuffer, vma::MemoryUsage::eCpuToGpu);
     }
-    swapchainDeletionQueue.push([&]() {
+    swapchainDeletionQueue.push([&] {
         for (auto &f: frames) {
-            vmaDestroyBuffer(allocator, f.data.uniformBuffers.buffer, f.data.uniformBuffers.memory);
-            vmaDestroyBuffer(allocator, f.data.materialBuffer.buffer, f.data.materialBuffer.memory);
+            allocator.destroyBuffer(f.data.uniformBuffers.buffer, f.data.uniformBuffers.memory);
+            allocator.destroyBuffer(f.data.materialBuffer.buffer, f.data.materialBuffer.memory);
         }
     });
 }
@@ -518,261 +522,237 @@ void VulkanApplication::createIndirectBuffer()
 {
     DEBUG_FUNCTION
     for (auto &f: frames) {
-        f.indirectBuffer = this->createBuffer(sizeof(VkDrawIndexedIndirectCommand) * MAX_OBJECT,
-                                              VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                                  VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
-                                              VMA_MEMORY_USAGE_CPU_TO_GPU);
+        f.indirectBuffer =
+            this->createBuffer(sizeof(vk::DrawIndexedIndirectCommand) * MAX_OBJECT,
+                               vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer |
+                                   vk::BufferUsageFlagBits::eIndirectBuffer,
+                               vma::MemoryUsage::eCpuToGpu);
     }
-    mainDeletionQueue.push([&]() {
-        for (auto &f: frames) { vmaDestroyBuffer(allocator, f.indirectBuffer.buffer, f.indirectBuffer.memory); }
+    mainDeletionQueue.push([&] {
+        for (auto &f: frames) { allocator.destroyBuffer(f.indirectBuffer.buffer, f.indirectBuffer.memory); }
     });
 }
 void VulkanApplication::createDescriptorPool()
 {
     DEBUG_FUNCTION
-    VkDescriptorPoolSize poolSize[] = {
+    vk::DescriptorPoolSize poolSize[] = {
         {
-            .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .type = vk::DescriptorType::eUniformBuffer,
             .descriptorCount = MAX_FRAME_FRAME_IN_FLIGHT,
         },
         {
-            .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .type = vk::DescriptorType::eCombinedImageSampler,
             .descriptorCount = 100,
         },
     };
 
-    VkDescriptorPoolCreateInfo poolInfo{
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        .pNext = nullptr,
+    vk::DescriptorPoolCreateInfo poolInfo{
         .maxSets = static_cast<uint32_t>(std::accumulate(poolSize, poolSize + std::size(poolSize), 0,
                                                          [](auto prev, auto &i) { return prev + i.descriptorCount; })),
         .poolSizeCount = std::size(poolSize),
         .pPoolSizes = poolSize,
     };
-    VK_TRY(vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool));
-    swapchainDeletionQueue.push([&]() { vkDestroyDescriptorPool(device, descriptorPool, nullptr); });
+    descriptorPool = device.createDescriptorPool(poolInfo);
+    swapchainDeletionQueue.push([&] { device.destroy(descriptorPool); });
 }
 
 void VulkanApplication::createDescriptorSets()
 {
     DEBUG_FUNCTION
     for (auto &f: frames) {
-        VkDescriptorSetAllocateInfo allocInfo{
-            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-            .pNext = nullptr,
+        vk::DescriptorSetAllocateInfo allocInfo{
             .descriptorPool = descriptorPool,
             .descriptorSetCount = 1,
             .pSetLayouts = &descriptorSetLayout,
         };
-        VK_TRY(vkAllocateDescriptorSets(device, &allocInfo, &f.data.objectDescriptor));
 
-        VkDescriptorBufferInfo bufferInfo{
+        // store index 0 because we only use one
+        f.data.objectDescriptor = device.allocateDescriptorSets(allocInfo)[0];
+
+        vk::DescriptorBufferInfo bufferInfo{
             .buffer = f.data.uniformBuffers.buffer,
             .offset = 0,
             .range = sizeof(gpuObject::UniformBufferObject) * MAX_OBJECT,
         };
-        VkDescriptorBufferInfo materialInfo{
+        vk::DescriptorBufferInfo materialInfo{
             .buffer = f.data.materialBuffer.buffer,
             .offset = 0,
             .range = sizeof(gpuObject::Material) * MAX_MATERIALS,
         };
-        std::vector<VkWriteDescriptorSet> descriptorWrites{
+        std::vector<vk::WriteDescriptorSet> descriptorWrites{
             {
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .pNext = nullptr,
                 .dstSet = f.data.objectDescriptor,
                 .dstBinding = 0,
                 .dstArrayElement = 0,
                 .descriptorCount = 1,
-                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                .descriptorType = vk::DescriptorType::eStorageBuffer,
                 .pBufferInfo = &bufferInfo,
             },
             {
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .pNext = nullptr,
                 .dstSet = f.data.objectDescriptor,
                 .dstBinding = 1,
                 .dstArrayElement = 0,
                 .descriptorCount = 1,
-                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                .descriptorType = vk::DescriptorType::eStorageBuffer,
                 .pBufferInfo = &materialInfo,
             },
         };
-        vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0,
-                               nullptr);
+        device.updateDescriptorSets(descriptorWrites, 0);
     }
 }
 
 void VulkanApplication::createTextureDescriptorSets()
 {
     DEBUG_FUNCTION
-    std::vector<VkDescriptorImageInfo> imagesInfos;
+    std::vector<vk::DescriptorImageInfo> imagesInfos;
     for (auto &[_, t]: loadedTextures) {
-        imagesInfos.push_back({
+        imagesInfos.push_back(vk::DescriptorImageInfo{
             .sampler = textureSampler,
             .imageView = t.imageView,
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
         });
     }
 
     uint32_t counts[] = {static_cast<uint32_t>(imagesInfos.size())};
-    VkDescriptorSetVariableDescriptorCountAllocateInfo set_counts{
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO,
-        .pNext = nullptr,
+    vk::DescriptorSetVariableDescriptorCountAllocateInfo set_counts{
         .descriptorSetCount = std::size(counts),
         .pDescriptorCounts = counts,
     };
-    VkDescriptorSetAllocateInfo allocInfo{
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    vk::DescriptorSetAllocateInfo allocInfo{
         .pNext = &set_counts,
         .descriptorPool = descriptorPool,
         .descriptorSetCount = 1,
         .pSetLayouts = &texturesSetLayout,
     };
-    VK_TRY(vkAllocateDescriptorSets(device, &allocInfo, &texturesSet));
-    VkWriteDescriptorSet descriptorWrite{
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .pNext = nullptr,
+    texturesSet = device.allocateDescriptorSets(allocInfo)[0];
+
+    vk::WriteDescriptorSet descriptorWrite{
         .dstSet = texturesSet,
         .dstBinding = 0,
         .dstArrayElement = 0,
         .descriptorCount = static_cast<uint32_t>(imagesInfos.size()),
-        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .descriptorType = vk::DescriptorType::eCombinedImageSampler,
         .pImageInfo = imagesInfos.data(),
     };
-    vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+    device.updateDescriptorSets(descriptorWrite, 0);
 }
 
 void VulkanApplication::createTextureSampler()
 {
     DEBUG_FUNCTION
-    VkPhysicalDeviceProperties properties{};
-    vkGetPhysicalDeviceProperties(physical_device, &properties);
+    vk::PhysicalDeviceProperties properties = physical_device.getProperties();
 
-    VkSamplerCreateInfo samplerInfo{
-        .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-        .pNext = nullptr,
-        .magFilter = VK_FILTER_NEAREST,
-        .minFilter = VK_FILTER_NEAREST,
-        .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-        .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    vk::SamplerCreateInfo samplerInfo{
+        .magFilter = vk::Filter::eNearest,
+        .minFilter = vk::Filter::eNearest,
+        .mipmapMode = vk::SamplerMipmapMode::eLinear,
+        .addressModeU = vk::SamplerAddressMode::eRepeat,
+        .addressModeV = vk::SamplerAddressMode::eRepeat,
+        .addressModeW = vk::SamplerAddressMode::eRepeat,
         .mipLodBias = 0.0f,
         .anisotropyEnable = VK_TRUE,
         .maxAnisotropy = properties.limits.maxSamplerAnisotropy,
         .compareEnable = VK_FALSE,
-        .compareOp = VK_COMPARE_OP_ALWAYS,
+        .compareOp = vk::CompareOp::eAlways,
         .minLod = 0.0f,
         .maxLod = static_cast<float>(mipLevels),
-        .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+        .borderColor = vk::BorderColor::eIntOpaqueBlack,
         .unnormalizedCoordinates = VK_FALSE,
     };
-    VK_TRY(vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler));
-    mainDeletionQueue.push([&]() { vkDestroySampler(device, textureSampler, nullptr); });
+    device.createSampler(samplerInfo);
+    mainDeletionQueue.push([&] { device.destroy(textureSampler); });
 }
 
 void VulkanApplication::createDepthResources()
 {
     DEBUG_FUNCTION
-    VkFormat depthFormat = vk_utils::findSupportedFormat(
-        physical_device, {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
-        VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    vk::Format depthFormat = vk_utils::findSupportedFormat(
+        physical_device, {vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint},
+        vk::ImageTiling::eOptimal, vk::FormatFeatureFlagBits::eDepthStencilAttachment);
 
-    VkImageCreateInfo imageInfo{
-        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-        .pNext = nullptr,
-        .flags = 0,
-        .imageType = VK_IMAGE_TYPE_2D,
+    vk::ImageCreateInfo imageInfo{
+        .imageType = vk::ImageType::e2D,
         .format = depthFormat,
         .extent = swapchain.getSwapchainExtent3D(),
         .mipLevels = 1,
         .arrayLayers = 1,
         .samples = creationParameters.msaaSample,
-        .tiling = VK_IMAGE_TILING_OPTIMAL,
-        .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .tiling = vk::ImageTiling::eOptimal,
+        .usage = vk::ImageUsageFlagBits::eDepthStencilAttachment,
+        .sharingMode = vk::SharingMode::eExclusive,
+        .initialLayout = vk::ImageLayout::eUndefined,
     };
-    VmaAllocationCreateInfo allocInfo{
-        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-    };
-    VK_TRY(vmaCreateImage(allocator, &imageInfo, &allocInfo, &depthResources.image, &depthResources.memory, nullptr));
+    vma::AllocationCreateInfo allocInfo{};
+    allocInfo.usage = vma::MemoryUsage::eGpuOnly;
+    allocator.createImage(imageInfo, allocInfo);
 
     auto createInfo = vk_init::populateVkImageViewCreateInfo(depthResources.image, depthFormat);
-    createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-    VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &depthResources.imageView));
+    createInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
+    depthResources.imageView = device.createImageView(createInfo);
 
-    transitionImageLayout(depthResources.image, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED,
-                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-    swapchainDeletionQueue.push([&]() {
-        vkDestroyImageView(device, depthResources.imageView, nullptr);
-        vmaDestroyImage(allocator, depthResources.image, depthResources.memory);
+    transitionImageLayout(depthResources.image, depthFormat, vk::ImageLayout::eUndefined,
+                          vk::ImageLayout::eDepthStencilAttachmentOptimal);
+    swapchainDeletionQueue.push([&] {
+        device.destroy(depthResources.imageView);
+        allocator.destroyImage(depthResources.image, depthResources.memory);
     });
 }
 
 void VulkanApplication::createColorResources()
 {
     DEBUG_FUNCTION
-    VkImageCreateInfo imageInfo{
-        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-        .pNext = nullptr,
-        .flags = 0,
-        .imageType = VK_IMAGE_TYPE_2D,
+    vk::ImageCreateInfo imageInfo{
+        .imageType = vk::ImageType::e2D,
         .format = swapchain.getSwapchainFormat(),
         .extent = swapchain.getSwapchainExtent3D(),
         .mipLevels = 1,
         .arrayLayers = 1,
         .samples = creationParameters.msaaSample,
-        .tiling = VK_IMAGE_TILING_OPTIMAL,
-        .usage = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .tiling = vk::ImageTiling::eOptimal,
+        .usage = vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment,
+        .sharingMode = vk::SharingMode::eExclusive,
+        .initialLayout = vk::ImageLayout::eUndefined,
     };
-    VmaAllocationCreateInfo allocInfo{
-        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-    };
-    VK_TRY(vmaCreateImage(allocator, &imageInfo, &allocInfo, &colorImage.image, &colorImage.memory, nullptr));
+    vma::AllocationCreateInfo allocInfo{};
+    allocInfo.usage = vma::MemoryUsage::eGpuOnly;
+    allocator.createImage(imageInfo, allocInfo);
 
     auto createInfo = vk_init::populateVkImageViewCreateInfo(colorImage.image, swapchain.getSwapchainFormat());
-    createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    VK_TRY(vkCreateImageView(device, &createInfo, nullptr, &colorImage.imageView));
+    createInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+    colorImage.imageView = device.createImageView(createInfo);
 
-    swapchainDeletionQueue.push([&]() {
-        vkDestroyImageView(device, colorImage.imageView, nullptr);
-        vmaDestroyImage(allocator, colorImage.image, colorImage.memory);
+    swapchainDeletionQueue.push([&] {
+        device.destroy(colorImage.imageView);
+        allocator.destroyImage(colorImage.image, colorImage.memory);
     });
 }
 
 void VulkanApplication::createImgui()
 {
     DEBUG_FUNCTION
-    VkDescriptorPoolSize pool_sizes[] = {{VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
-                                         {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
-                                         {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
-                                         {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
-                                         {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
-                                         {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
-                                         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
-                                         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
-                                         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
-                                         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
-                                         {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}};
+    vk::DescriptorPoolSize pool_sizes[] = {{vk::DescriptorType::eSampler, 1000},
+                                           {vk::DescriptorType::eCombinedImageSampler, 1000},
+                                           {vk::DescriptorType::eSampledImage, 1000},
+                                           {vk::DescriptorType::eStorageImage, 1000},
+                                           {vk::DescriptorType::eUniformTexelBuffer, 1000},
+                                           {vk::DescriptorType::eStorageTexelBuffer, 1000},
+                                           {vk::DescriptorType::eUniformBuffer, 1000},
+                                           {vk::DescriptorType::eStorageBuffer, 1000},
+                                           {vk::DescriptorType::eUniformBufferDynamic, 1000},
+                                           {vk::DescriptorType::eStorageBufferDynamic, 1000},
+                                           {vk::DescriptorType::eInputAttachment, 1000}};
 
-    VkDescriptorPoolCreateInfo pool_info = {
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        .pNext = nullptr,
-        .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+    vk::DescriptorPoolCreateInfo pool_info = {
+        .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
         .maxSets = 1000,
         .poolSizeCount = std::size(pool_sizes),
         .pPoolSizes = pool_sizes,
     };
 
-    VkDescriptorPool imguiPool;
-    VK_TRY(vkCreateDescriptorPool(device, &pool_info, nullptr, &imguiPool));
+    vk::DescriptorPool imguiPool;
+    imguiPool = device.createDescriptorPool(pool_info);
 
     ImGui::CreateContext();
-
     ImGui_ImplGlfw_InitForVulkan(window.getWindow(), true);
 
     ImGui_ImplVulkan_InitInfo init_info{
@@ -783,17 +763,15 @@ void VulkanApplication::createImgui()
         .DescriptorPool = imguiPool,
         .MinImageCount = swapchain.nbOfImage(),
         .ImageCount = swapchain.nbOfImage(),
-        .MSAASamples = creationParameters.msaaSample,
-        .CheckVkResultFn = vk_utils::vk_try,
+        .MSAASamples = static_cast<VkSampleCountFlagBits>(creationParameters.msaaSample),
     };
-
     ImGui_ImplVulkan_Init(&init_info, renderPass);
 
-    immediateCommand([&](VkCommandBuffer cmd) { ImGui_ImplVulkan_CreateFontsTexture(cmd); });
+    immediateCommand([&](vk::CommandBuffer cmd) { ImGui_ImplVulkan_CreateFontsTexture(cmd); });
 
     ImGui_ImplVulkan_DestroyFontUploadObjects();
 
-    swapchainDeletionQueue.push([=, this]() {
+    swapchainDeletionQueue.push([=, this] {
         vkDestroyDescriptorPool(device, imguiPool, nullptr);
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplGlfw_Shutdown();

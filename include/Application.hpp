@@ -2,7 +2,7 @@
 
 #include <Window.hpp>
 #include <vector>
-#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan.hpp>
 
 #include "DeletionQueue.hpp"
 #include "Player.hpp"
@@ -51,8 +51,9 @@ private:
         bool bShowFpsInTitle = false;
         bool bWireFrameMode = false;
         bool bTmpObject = false;
-        VkClearColorValue vClearColor = {{0.0f, 0.0f, 0.0f, 1.0f}};
+        std::array<float, 4> vClearColor = {0.0f, 0.0f, 0.0f, 1.0f};
     } uiRessources = {};
+
     Player player;
     Scene scene;
     std::vector<gpuObject::Material> materials;

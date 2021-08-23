@@ -1,8 +1,8 @@
 #pragma once
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan.hpp>
 
 struct CreationParameters {
-    VkPolygonMode polygonMode = VK_POLYGON_MODE_FILL;
-    VkSampleCountFlagBits msaaSample = VK_SAMPLE_COUNT_1_BIT;
-    VkCullModeFlags cullMode = VK_CULL_MODE_BACK_BIT;
+    vk::PolygonMode polygonMode = vk::PolygonMode::eFill;
+    vk::SampleCountFlagBits msaaSample = vk::SampleCountFlagBits::e1;
+    vk::CullModeFlagBits cullMode = vk::CullModeFlagBits::eFrontAndBack;
 };
