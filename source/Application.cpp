@@ -133,14 +133,14 @@ void Application::loadModel()
     vertexBuffers = createBuffer(vertexSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                  VMA_MEMORY_USAGE_GPU_ONLY);
     copyBuffer(stagingVertex, vertexStagingBuffer);
-    copyBuffer(stagingVertex.buffer, vertexBuffers.buffer, vertexSize);
+    copyBufferToBuffer(stagingVertex.buffer, vertexBuffers.buffer, vertexSize);
 
     auto indexSize = indexStagingBuffer.size() * sizeof(uint32_t);
     auto stagingIndex = createBuffer(indexSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
     indicesBuffers = createBuffer(indexSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                   VMA_MEMORY_USAGE_GPU_ONLY);
     copyBuffer(stagingIndex, indexStagingBuffer);
-    copyBuffer(stagingIndex.buffer, indicesBuffers.buffer, indexSize);
+    copyBufferToBuffer(stagingIndex.buffer, indicesBuffers.buffer, indexSize);
 
     vmaDestroyBuffer(allocator, stagingVertex.buffer, stagingVertex.memory);
     vmaDestroyBuffer(allocator, stagingIndex.buffer, stagingIndex.memory);

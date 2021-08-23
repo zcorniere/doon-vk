@@ -17,7 +17,7 @@
 #include "vk_mem_alloc.h"
 #include "vk_utils.hpp"
 
-void VulkanApplication::copyBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, VkDeviceSize &size)
+void VulkanApplication::copyBufferToBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, const VkDeviceSize &size)
 {
     immediateCommand([=, this](VkCommandBuffer &cmd) {
         VkBufferCopy copyRegion{

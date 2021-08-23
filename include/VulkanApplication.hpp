@@ -51,14 +51,16 @@ public:
     AllocatedBuffer createBuffer(uint32_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 
 protected:
-    template <typename T>
-    void copyBuffer(AllocatedBuffer &buffer, std::vector<T> &data);
-    template <typename T>
-    void copyBuffer(AllocatedBuffer &buffer, T *data, size_t size);
-    void copyBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, VkDeviceSize &size);
+    template <vk_utils::is_copyable T>
+    void copyBuffer(AllocatedBuffer &buffer, const std::vector<T> &data);
+    template <vk_utils::is_copyable T>
+    void copyBuffer(AllocatedBuffer &buffer, const T *data, const size_t size);
+
     GPUMesh uploadMesh(const CPUMesh &mesh);
     void immediateCommand(std::function<void(VkCommandBuffer &)> &&);
     void copyBufferToImage(const VkBuffer &srcBuffer, VkImage &dstBuffer, uint32_t width, uint32_t height);
+    void copyBufferToBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, const VkDeviceSize &size);
+
     void transitionImageLayout(VkImage &image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
                                uint32_t mipLevels = 1);
     void generateMipmaps(VkImage &image, VkFormat imageFormat, uint32_t texWidth, uint32_t texHeight,
@@ -171,8 +173,8 @@ private:
 #ifndef VULKAN_APPLICATION_IMPLEMENTATION
 #define VULKAN_APPLICATION_IMPLEMENTATION
 
-template <typename T>
-void VulkanApplication::copyBuffer(AllocatedBuffer &buffer, T *data, size_t size)
+template <vk_utils::is_copyable T>
+void VulkanApplication::copyBuffer(AllocatedBuffer &buffer, const T *data, const size_t size)
 {
     void *mapped = nullptr;
     vmaMapMemory(allocator, buffer.memory, &mapped);
@@ -180,8 +182,8 @@ void VulkanApplication::copyBuffer(AllocatedBuffer &buffer, T *data, size_t size
     vmaUnmapMemory(allocator, buffer.memory);
 }
 
-template <typename T>
-void VulkanApplication::copyBuffer(AllocatedBuffer &buffer, std::vector<T> &data)
+template <vk_utils::is_copyable T>
+void VulkanApplication::copyBuffer(AllocatedBuffer &buffer, const std::vector<T> &data)
 {
     VkDeviceSize size = sizeof(data[0]) * data.size();
     void *mapped = nullptr;
