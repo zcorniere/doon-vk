@@ -6,18 +6,41 @@
 #include "Application.hpp"
 #include "Logger.hpp"
 #include "types/VulkanException.hpp"
+#include <getopt.h>
 
 Logger *logger = nullptr;
 
 __attribute__((constructor)) void ctor()
 {
     logger = new Logger(std::cout);
-    logger->start();
+    logger->start(Logger::Level::Info);
 }
 __attribute__((destructor)) void dtor() { delete logger; }
 
-int main()
+struct CmdOption {
+    bool bVerbose = false;
+};
+
+CmdOption getCmdLineOption(int ac, char **av)
+{
+    CmdOption opt{};
+    int c;
+
+    while ((c = getopt(ac, av, "v")) != -1) {
+        switch (c) {
+            case 'v': opt.bVerbose = true; break;
+            default: break;
+        }
+    }
+
+    return opt;
+}
+
+int main(int ac, char **av)
 try {
+    CmdOption option = getCmdLineOption(ac, av);
+    if (option.bVerbose) logger->setLevel(Logger::Level::Debug);
+
     Application app;
 
     app.init([&app]() {

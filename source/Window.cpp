@@ -1,5 +1,6 @@
 
 #include "Window.hpp"
+#include "DebugMacros.hpp"
 #include <stdexcept>
 
 Window::Window(std::string n, unsigned w, unsigned h): width(w), height(h), windowName(n) { initWindow(); }
@@ -12,6 +13,7 @@ Window::~Window()
 
 void Window::createSurface(const VkInstance &instance, VkSurfaceKHR *surface)
 {
+    DEBUG_FUNCTION
     if (glfwCreateWindowSurface(instance, window, nullptr, surface) != VK_SUCCESS) {
         throw std::runtime_error("failed to create surface");
     }

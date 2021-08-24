@@ -1,5 +1,7 @@
 #include "Application.hpp"
 
+#include <Logger.hpp>
+#include <ProgressBar.hpp>
 #include <algorithm>
 #include <array>
 #include <backends/imgui_impl_glfw.h>
@@ -24,10 +26,10 @@
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
+#include <vk_mem_alloc.h>
 
 #include "Camera.hpp"
-#include "Logger.hpp"
-#include "ProgressBar.hpp"
+#include "DebugMacros.hpp"
 #include "Swapchain.hpp"
 #include "Window.hpp"
 #include "types/AllocatedBuffer.hpp"
@@ -37,11 +39,11 @@
 #include "types/Vertex.hpp"
 #include "types/vk_types.hpp"
 #include "vk_init.hpp"
-#include "vk_mem_alloc.h"
 #include "vk_utils.hpp"
 
 Application::Application(): player()
 {
+    DEBUG_FUNCTION
     window.setUserPointer(this);
     window.captureCursor(true);
     window.setKeyCallback(Application::keyboard_callback);
@@ -51,12 +53,14 @@ Application::Application(): player()
 
 Application::~Application()
 {
+    DEBUG_FUNCTION
     if (device != VK_NULL_HANDLE) vkDeviceWaitIdle(device);
     applicationDeletionQueue.flush();
 }
 
 void Application::loadModel()
 {
+    DEBUG_FUNCTION
     std::vector<Vertex> vertexStagingBuffer;
     std::vector<uint32_t> indexStagingBuffer;
 
@@ -153,6 +157,7 @@ void Application::loadModel()
 
 void Application::loadTextures()
 {
+    DEBUG_FUNCTION
     auto iterator = std::filesystem::directory_iterator("../textures");
     auto distance = std::distance(begin(iterator), end(iterator));
 

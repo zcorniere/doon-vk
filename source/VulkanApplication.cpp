@@ -13,6 +13,7 @@
 #include <stdexcept>
 
 #include "Camera.hpp"
+#include "DebugMacros.hpp"
 #include "Logger.hpp"
 #include "PipelineBuilder.hpp"
 #include "QueueFamilyIndices.hpp"
@@ -31,12 +32,14 @@
 
 VulkanApplication::VulkanApplication(): window("Vulkan", 800, 600)
 {
+    DEBUG_FUNCTION
     window.setUserPointer(this);
     window.setResizeCallback(framebufferResizeCallback);
 }
 
 VulkanApplication::~VulkanApplication()
 {
+    DEBUG_FUNCTION
     if (device != VK_NULL_HANDLE) vkDeviceWaitIdle(device);
     swapchain.destroy();
     swapchainDeletionQueue.flush();
@@ -45,6 +48,7 @@ VulkanApplication::~VulkanApplication()
 
 void VulkanApplication::init(std::function<bool()> &&loadingStage)
 {
+    DEBUG_FUNCTION
     initInstance();
     initDebug();
     initSurface();
@@ -79,6 +83,7 @@ void VulkanApplication::init(std::function<bool()> &&loadingStage)
 
 void VulkanApplication::initInstance()
 {
+    DEBUG_FUNCTION
     if (enableValidationLayers && !checkValiationLayerSupport()) {
         throw std::runtime_error("validation layers requested, but not available!");
     }
@@ -107,6 +112,7 @@ void VulkanApplication::initInstance()
 
 void VulkanApplication::initDebug()
 {
+    DEBUG_FUNCTION
     if (!enableValidationLayers) return;
 
     auto debugInfo = vk_init::populateDebugUtilsMessengerCreateInfoEXT(&VulkanApplication::debugCallback);
@@ -119,6 +125,7 @@ void VulkanApplication::initDebug()
 
 void VulkanApplication::pickPhysicalDevice()
 {
+    DEBUG_FUNCTION
     for (const auto &device: vk_utils::getPhysicalDevices(instance)) {
         if (isDeviceSuitable(device, surface)) {
             physical_device = device;
@@ -140,12 +147,14 @@ void VulkanApplication::pickPhysicalDevice()
 
 void VulkanApplication::initSurface()
 {
+    DEBUG_FUNCTION
     window.createSurface(instance, &surface);
     mainDeletionQueue.push([&]() { vkDestroySurfaceKHR(instance, surface, nullptr); });
 }
 
 void VulkanApplication::createLogicalDevice()
 {
+    DEBUG_FUNCTION
     float fQueuePriority = 1.0f;
     auto indices = QueueFamilyIndices::findQueueFamilies(physical_device, surface);
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -191,6 +200,7 @@ void VulkanApplication::createLogicalDevice()
 
 void VulkanApplication::createAllocator()
 {
+    DEBUG_FUNCTION
     VmaAllocatorCreateInfo allocatorInfo{
         .physicalDevice = physical_device,
         .device = device,
@@ -203,6 +213,7 @@ void VulkanApplication::createAllocator()
 
 void VulkanApplication::createRenderPass()
 {
+    DEBUG_FUNCTION
     VkAttachmentDescription colorAttachment{
         .format = swapchain.getSwapchainFormat(),
         .samples = creationParameters.msaaSample,
@@ -279,6 +290,7 @@ void VulkanApplication::createRenderPass()
 }
 void VulkanApplication::createGraphicsPipeline()
 {
+    DEBUG_FUNCTION
     auto vertShaderCode = vk_utils::readFile("shaders/default_triangle.vert.spv");
     auto fragShaderCode = vk_utils::readFile("shaders/default_triangle.frag.spv");
 
@@ -331,6 +343,7 @@ void VulkanApplication::createGraphicsPipeline()
 
 void VulkanApplication::createFramebuffers()
 {
+    DEBUG_FUNCTION
     swapChainFramebuffers.resize(swapchain.nbOfImage());
     for (size_t i = 0; i < swapchain.nbOfImage(); i++) {
         std::array<VkImageView, 3> attachments = {colorImage.imageView, depthResources.imageView,
@@ -355,6 +368,7 @@ void VulkanApplication::createFramebuffers()
 
 void VulkanApplication::createCommandPool()
 {
+    DEBUG_FUNCTION
     auto indices = QueueFamilyIndices::findQueueFamilies(physical_device, surface);
     VkCommandPoolCreateInfo poolInfo{
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -372,6 +386,7 @@ void VulkanApplication::createCommandPool()
 
 void VulkanApplication::createCommandBuffers()
 {
+    DEBUG_FUNCTION
     commandBuffers.resize(swapChainFramebuffers.size());
 
     VkCommandBufferAllocateInfo allocInfo{
@@ -388,6 +403,7 @@ void VulkanApplication::createCommandBuffers()
 
 void VulkanApplication::createSyncObjects()
 {
+    DEBUG_FUNCTION
     VkSemaphoreCreateInfo semaphoreInfo{
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
         .pNext = nullptr,
@@ -422,6 +438,7 @@ void VulkanApplication::createSyncObjects()
 
 void VulkanApplication::createDescriptorSetLayout()
 {
+    DEBUG_FUNCTION
     VkDescriptorSetLayoutBinding uboLayoutBinding{
         .binding = 0,
         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
@@ -452,6 +469,7 @@ void VulkanApplication::createDescriptorSetLayout()
 
 void VulkanApplication::createTextureDescriptorSetLayout()
 {
+    DEBUG_FUNCTION
     std::vector<VkDescriptorBindingFlags> flags{
         VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
     };
@@ -481,6 +499,7 @@ void VulkanApplication::createTextureDescriptorSetLayout()
 
 void VulkanApplication::createUniformBuffers()
 {
+    DEBUG_FUNCTION
     for (auto &f: frames) {
         f.data.uniformBuffers = createBuffer(sizeof(gpuObject::UniformBufferObject) * MAX_OBJECT,
                                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -497,6 +516,7 @@ void VulkanApplication::createUniformBuffers()
 
 void VulkanApplication::createIndirectBuffer()
 {
+    DEBUG_FUNCTION
     for (auto &f: frames) {
         f.indirectBuffer = this->createBuffer(sizeof(VkDrawIndexedIndirectCommand) * MAX_OBJECT,
                                               VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
@@ -509,6 +529,7 @@ void VulkanApplication::createIndirectBuffer()
 }
 void VulkanApplication::createDescriptorPool()
 {
+    DEBUG_FUNCTION
     VkDescriptorPoolSize poolSize[] = {
         {
             .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -534,6 +555,7 @@ void VulkanApplication::createDescriptorPool()
 
 void VulkanApplication::createDescriptorSets()
 {
+    DEBUG_FUNCTION
     for (auto &f: frames) {
         VkDescriptorSetAllocateInfo allocInfo{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
@@ -583,6 +605,7 @@ void VulkanApplication::createDescriptorSets()
 
 void VulkanApplication::createTextureDescriptorSets()
 {
+    DEBUG_FUNCTION
     std::vector<VkDescriptorImageInfo> imagesInfos;
     for (auto &[_, t]: loadedTextures) {
         imagesInfos.push_back({
@@ -622,6 +645,7 @@ void VulkanApplication::createTextureDescriptorSets()
 
 void VulkanApplication::createTextureSampler()
 {
+    DEBUG_FUNCTION
     VkPhysicalDeviceProperties properties{};
     vkGetPhysicalDeviceProperties(physical_device, &properties);
 
@@ -650,6 +674,7 @@ void VulkanApplication::createTextureSampler()
 
 void VulkanApplication::createDepthResources()
 {
+    DEBUG_FUNCTION
     VkFormat depthFormat = vk_utils::findSupportedFormat(
         physical_device, {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
         VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
@@ -688,6 +713,7 @@ void VulkanApplication::createDepthResources()
 
 void VulkanApplication::createColorResources()
 {
+    DEBUG_FUNCTION
     VkImageCreateInfo imageInfo{
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .pNext = nullptr,
@@ -720,6 +746,7 @@ void VulkanApplication::createColorResources()
 
 void VulkanApplication::createImgui()
 {
+    DEBUG_FUNCTION
     VkDescriptorPoolSize pool_sizes[] = {{VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
                                          {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
                                          {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
@@ -775,6 +802,7 @@ void VulkanApplication::createImgui()
 
 void VulkanApplication::recreateSwapchain()
 {
+    DEBUG_FUNCTION
     int width = 0, height = 0;
     glfwGetFramebufferSize(window.getWindow(), &width, &height);
     while (width == 0 || height == 0) {

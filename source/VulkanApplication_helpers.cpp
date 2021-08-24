@@ -6,19 +6,21 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <vk_mem_alloc.h>
 #include <vulkan/vulkan_core.h>
 
 #include "Camera.hpp"
+#include "DebugMacros.hpp"
 #include "QueueFamilyIndices.hpp"
 #include "SwapChainSupportDetails.hpp"
 #include "VulkanApplication.hpp"
 #include "types/AllocatedBuffer.hpp"
 #include "types/Mesh.hpp"
-#include "vk_mem_alloc.h"
 #include "vk_utils.hpp"
 
 void VulkanApplication::copyBufferToBuffer(const VkBuffer &srcBuffer, VkBuffer &dstBuffer, const VkDeviceSize &size)
 {
+    DEBUG_FUNCTION
     immediateCommand([=, this](VkCommandBuffer &cmd) {
         VkBufferCopy copyRegion{
             .srcOffset = 0,
@@ -30,6 +32,7 @@ void VulkanApplication::copyBufferToBuffer(const VkBuffer &srcBuffer, VkBuffer &
 }
 void VulkanApplication::copyBufferToImage(const VkBuffer &srcBuffer, VkImage &dstImage, uint32_t width, uint32_t height)
 {
+    DEBUG_FUNCTION
     immediateCommand([=, this](VkCommandBuffer &cmd) {
         VkBufferImageCopy region{
             .bufferOffset = 0,
@@ -51,6 +54,7 @@ void VulkanApplication::copyBufferToImage(const VkBuffer &srcBuffer, VkImage &ds
 
 void VulkanApplication::immediateCommand(std::function<void(VkCommandBuffer &)> &&function)
 {
+    DEBUG_FUNCTION
     VkCommandBufferAllocateInfo cmdAllocInfo{
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .pNext = nullptr,
@@ -96,6 +100,7 @@ void VulkanApplication::immediateCommand(std::function<void(VkCommandBuffer &)> 
 void VulkanApplication::transitionImageLayout(VkImage &image, VkFormat format, VkImageLayout oldLayout,
                                               VkImageLayout newLayout, uint32_t mipLevels)
 {
+    DEBUG_FUNCTION
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;
     VkImageMemoryBarrier barrier{
@@ -162,6 +167,7 @@ void VulkanApplication::transitionImageLayout(VkImage &image, VkFormat format, V
 AllocatedBuffer VulkanApplication::createBuffer(uint32_t allocSize, VkBufferUsageFlags usage,
                                                 VmaMemoryUsage memoryUsage)
 {
+    DEBUG_FUNCTION
     VkBufferCreateInfo bufferInfo{
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .pNext = nullptr,
@@ -181,6 +187,7 @@ AllocatedBuffer VulkanApplication::createBuffer(uint32_t allocSize, VkBufferUsag
 void VulkanApplication::generateMipmaps(VkImage &image, VkFormat imageFormat, uint32_t texWidth, uint32_t texHeight,
                                         uint32_t mipLevel)
 {
+    DEBUG_FUNCTION
     VkFormatProperties formatProperties;
     vkGetPhysicalDeviceFormatProperties(physical_device, imageFormat, &formatProperties);
     if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
@@ -253,6 +260,7 @@ void VulkanApplication::generateMipmaps(VkImage &image, VkFormat imageFormat, ui
 
 bool VulkanApplication::isDeviceSuitable(const VkPhysicalDevice &gpu, const VkSurfaceKHR &surface)
 {
+    DEBUG_FUNCTION
     auto indices = QueueFamilyIndices::findQueueFamilies(gpu, surface);
     bool extensionsSupported = checkDeviceExtensionSupport(gpu);
     VkPhysicalDeviceProperties deviceProperties;
@@ -271,6 +279,7 @@ bool VulkanApplication::isDeviceSuitable(const VkPhysicalDevice &gpu, const VkSu
 
 bool VulkanApplication::checkDeviceExtensionSupport(const VkPhysicalDevice &device)
 {
+    DEBUG_FUNCTION
     uint32_t extensionsCount;
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionsCount, nullptr);
     std::vector<VkExtensionProperties> availableExtensions(extensionsCount);

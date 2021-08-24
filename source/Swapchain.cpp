@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdexcept>
 
+#include "DebugMacros.hpp"
 #include "QueueFamilyIndices.hpp"
 #include "SwapChainSupportDetails.hpp"
 #include "vk_init.hpp"
@@ -17,6 +18,7 @@ Swapchain::~Swapchain() {}
 
 void Swapchain::init(Window &win, VkPhysicalDevice &gpu, VkDevice &device, VkSurfaceKHR &surface)
 {
+    DEBUG_FUNCTION
     createSwapchain(win, gpu, device, surface);
     getImages(device);
     createImageViews(device);
@@ -26,6 +28,7 @@ void Swapchain::destroy() { chainDeletionQueue.flush(); }
 
 void Swapchain::recreate(Window &win, VkPhysicalDevice &gpu, VkDevice &device, VkSurfaceKHR &surface)
 {
+    DEBUG_FUNCTION
     this->destroy();
     this->init(win, gpu, device, surface);
 }
@@ -39,6 +42,7 @@ uint32_t Swapchain::nbOfImage() const
 
 void Swapchain::createSwapchain(Window &window, VkPhysicalDevice &gpu, VkDevice &device, VkSurfaceKHR &surface)
 {
+    DEBUG_FUNCTION
     auto indices = QueueFamilyIndices::findQueueFamilies(gpu, surface);
 
     auto swapChainSupport = SwapChainSupportDetails::querySwapChainSupport(gpu, surface);
@@ -85,6 +89,7 @@ void Swapchain::createSwapchain(Window &window, VkPhysicalDevice &gpu, VkDevice 
 
 void Swapchain::getImages(VkDevice &device)
 {
+    DEBUG_FUNCTION
     uint32_t imageCount = 0;
 
     vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
@@ -94,6 +99,7 @@ void Swapchain::getImages(VkDevice &device)
 
 void Swapchain::createImageViews(VkDevice &device)
 {
+    DEBUG_FUNCTION
     swapChainImageViews.resize(swapChainImages.size());
 
     for (size_t i = 0; i < swapChainImages.size(); ++i) {
