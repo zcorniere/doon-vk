@@ -26,9 +26,7 @@ std::vector<std::byte> readFile(const std::string &filename)
 
 vk::ShaderModule createShaderModule(const vk::Device &device, const std::vector<std::byte> &code)
 {
-    auto createInfo = vk::ShaderModuleCreateInfo{
-        .pCode = reinterpret_cast<const uint32_t *>(code.data()),
-    };
+    auto createInfo = vk_init::populateVkShaderModuleCreateInfo(code);
     return device.createShaderModule(createInfo);
 }
 

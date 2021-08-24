@@ -4,9 +4,8 @@ vk::DebugUtilsMessengerCreateInfoEXT
 vk_init::populateDebugUtilsMessengerCreateInfoEXT(PFN_vkDebugUtilsMessengerCallbackEXT debugCallback)
 {
     return vk::DebugUtilsMessengerCreateInfoEXT{
-        .messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eError |
-                           vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
-                           vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo,
+        .messageSeverity =
+            vk::DebugUtilsMessageSeverityFlagBitsEXT::eError | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning,
         .messageType = vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
                        vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
                        vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,

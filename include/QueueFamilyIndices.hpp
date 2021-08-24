@@ -14,10 +14,9 @@ struct QueueFamilyIndices {
     static QueueFamilyIndices findQueueFamilies(const vk::PhysicalDevice &device, const vk::SurfaceKHR &surface)
     {
         QueueFamilyIndices indices;
-        uint32_t uFamilyCount = 0;
         auto family_property_list = device.getQueueFamilyProperties();
 
-        for (uint32_t i = 0; i < uFamilyCount && !indices.isComplete(); ++i) {
+        for (uint32_t i = 0; i < family_property_list.size() && !indices.isComplete(); ++i) {
             if (family_property_list.at(i).queueFlags & vk::QueueFlagBits::eGraphics) indices.graphicsFamily = i;
             if (device.getSurfaceSupportKHR(i, surface)) indices.presentFamily = i;
         }

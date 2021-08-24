@@ -97,10 +97,8 @@ void Swapchain::createImageViews(vk::Device &device)
     swapChainImageViews.resize(swapChainImages.size());
 
     for (size_t i = 0; i < swapChainImages.size(); ++i) {
-        vk::ImageViewCreateInfo createInfo{
-            .image = swapChainImages[i],
-            .format = swapChainImageFormat,
-        };
+        vk::ImageViewCreateInfo createInfo =
+            vk_init::populateVkImageViewCreateInfo(this->getSwapchainImage(i), this->getSwapchainFormat());
         swapChainImageViews.at(i) = device.createImageView(createInfo);
     }
     chainDeletionQueue.push([&]() {

@@ -178,11 +178,7 @@ void VulkanApplication::createLogicalDevice()
     std::set<uint32_t> uniqueQueueFamilies{indices.graphicsFamily.value(), indices.presentFamily.value()};
 
     for (const uint32_t queueFamily: uniqueQueueFamilies) {
-        queueCreateInfos.push_back({
-            .queueFamilyIndex = 1,
-            .queueCount = queueFamily,
-            .pQueuePriorities = &fQueuePriority,
-        });
+        queueCreateInfos.push_back(vk_init::populateDeviceQueueCreateInfo(1, queueFamily, fQueuePriority));
     }
 
     vk::PhysicalDeviceDescriptorIndexingFeatures descriptorIndex{
