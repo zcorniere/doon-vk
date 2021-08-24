@@ -8,9 +8,9 @@
 #include <iterator>
 #include <numeric>
 #include <optional>
-#include <ostream>
 #include <set>
 #include <stdexcept>
+#include <vk_mem_alloc.hpp>
 
 #include "Camera.hpp"
 #include "DebugMacros.hpp"
@@ -23,7 +23,6 @@
 #include "types/VulkanException.hpp"
 #include "types/vk_types.hpp"
 #include "vk_init.hpp"
-#include "vk_mem_alloc.h"
 #include "vk_utils.hpp"
 
 #define MAX_OBJECT 1000
@@ -57,7 +56,7 @@ VulkanApplication::~VulkanApplication()
 {
     DEBUG_FUNCTION
     if (device) device.waitIdle();
-    swapchain.destroy();
+    if (swapchain) swapchain.destroy();
     swapchainDeletionQueue.flush();
     mainDeletionQueue.flush();
 }
@@ -115,7 +114,7 @@ void VulkanApplication::initInstance()
         .ppEnabledExtensionNames = extensions.data(),
     };
     if (enableValidationLayers) {
-        createInfo.pNext = (vk::DebugUtilsMessengerCreateInfoEXT *)&debugInfo;
+        createInfo.pNext = &debugInfo;
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
         createInfo.ppEnabledLayerNames = validationLayers.data();
     }
@@ -134,7 +133,7 @@ void VulkanApplication::initDebug()
     pfnVkDestroyDebugUtilsMessengerEXT =
         reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(instance.getProcAddr("vkDestroyDebugUtilsMessengerEXT"));
 
-    instance.createDebugUtilsMessengerEXT(debugInfo);
+    debugUtilsMessenger = instance.createDebugUtilsMessengerEXT(debugInfo);
     logger->warn("Validation Layers") << "Validation Layers are activated !";
     LOGGER_ENDL;
     mainDeletionQueue.push([&] { instance.destroyDebugUtilsMessengerEXT(debugUtilsMessenger); });
@@ -164,7 +163,7 @@ void VulkanApplication::pickPhysicalDevice()
 void VulkanApplication::initSurface()
 {
     DEBUG_FUNCTION
-    window.createSurface(instance, &surface);
+    surface = window.createSurface(instance);
     mainDeletionQueue.push([&] { instance.destroy(surface); });
 }
 
@@ -192,6 +191,7 @@ void VulkanApplication::createLogicalDevice()
     };
 
     vk::PhysicalDeviceFeatures deviceFeature{
+        .drawIndirectFirstInstance = VK_TRUE,
         .fillModeNonSolid = VK_TRUE,
         .samplerAnisotropy = VK_TRUE,
     };
@@ -311,21 +311,11 @@ void VulkanApplication::createGraphicsPipeline()
     auto vertShaderModule = vk_utils::createShaderModule(device, vertShaderCode);
     auto fragShaderModule = vk_utils::createShaderModule(device, fragShaderCode);
 
-    std::vector<vk::PushConstantRange> pipelinePushConstant = {
-        vk::PushConstantRange{
-            .stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
-            .offset = 0,
-            .size = sizeof(Camera::GPUCameraData),
-        },
-    };
+    std::vector<vk::PushConstantRange> pipelinePushConstant = {vk_init::populateVkPushConstantRange(
+        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, sizeof(Camera::GPUCameraData))};
 
     std::vector<vk::DescriptorSetLayout> setLayout = {descriptorSetLayout, texturesSetLayout};
-    vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo{
-        .setLayoutCount = static_cast<uint32_t>(setLayout.size()),
-        .pSetLayouts = setLayout.data(),
-        .pushConstantRangeCount = static_cast<uint32_t>(pipelinePushConstant.size()),
-        .pPushConstantRanges = pipelinePushConstant.data(),
-    };
+    auto pipelineLayoutCreateInfo = vk_init::populateVkPipelineLayoutCreateInfo(setLayout, pipelinePushConstant);
     pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
 
     std::vector<vk::VertexInputBindingDescription> binding = {Vertex::getBindingDescription()};
@@ -374,14 +364,13 @@ void VulkanApplication::createFramebuffers()
 
         vk::FramebufferCreateInfo framebufferInfo{
             .renderPass = renderPass,
-            .attachmentCount = static_cast<uint32_t>(attachments.size()),
-            .pAttachments = attachments.data(),
             .width = swapchain.getSwapchainExtent().width,
             .height = swapchain.getSwapchainExtent().height,
             .layers = 1,
         };
+        framebufferInfo.setAttachments(attachments);
 
-        device.createFramebuffer(framebufferInfo);
+        swapChainFramebuffers.at(i) = device.createFramebuffer(framebufferInfo);
     }
     swapchainDeletionQueue.push([&] {
         for (auto &framebuffer: swapChainFramebuffers) { device.destroy(framebuffer); }
@@ -486,7 +475,6 @@ void VulkanApplication::createTextureDescriptorSetLayout()
         .descriptorType = vk::DescriptorType::eCombinedImageSampler,
         .descriptorCount = 32,
         .stageFlags = vk::ShaderStageFlagBits::eFragment,
-        .pImmutableSamplers = nullptr,
     };
     vk::DescriptorSetLayoutCreateInfo texturesSetLayoutInfo{
         .pNext = &bindingInfo,
@@ -562,8 +550,7 @@ void VulkanApplication::createDescriptorSets()
             .pSetLayouts = &descriptorSetLayout,
         };
 
-        // store index 0 because we only use one
-        f.data.objectDescriptor = device.allocateDescriptorSets(allocInfo)[0];
+        f.data.objectDescriptor = device.allocateDescriptorSets(allocInfo).front();
 
         vk::DescriptorBufferInfo bufferInfo{
             .buffer = f.data.uniformBuffers.buffer,
@@ -602,7 +589,7 @@ void VulkanApplication::createTextureDescriptorSets()
     DEBUG_FUNCTION
     std::vector<vk::DescriptorImageInfo> imagesInfos;
     for (auto &[_, t]: loadedTextures) {
-        imagesInfos.push_back(vk::DescriptorImageInfo{
+        imagesInfos.push_back({
             .sampler = textureSampler,
             .imageView = t.imageView,
             .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
@@ -620,7 +607,7 @@ void VulkanApplication::createTextureDescriptorSets()
         .descriptorSetCount = 1,
         .pSetLayouts = &texturesSetLayout,
     };
-    texturesSet = device.allocateDescriptorSets(allocInfo)[0];
+    texturesSet = device.allocateDescriptorSets(allocInfo).front();
 
     vk::WriteDescriptorSet descriptorWrite{
         .dstSet = texturesSet,
@@ -655,7 +642,7 @@ void VulkanApplication::createTextureSampler()
         .borderColor = vk::BorderColor::eIntOpaqueBlack,
         .unnormalizedCoordinates = VK_FALSE,
     };
-    device.createSampler(samplerInfo);
+    textureSampler = device.createSampler(samplerInfo);
     mainDeletionQueue.push([&] { device.destroy(textureSampler); });
 }
 
@@ -678,8 +665,8 @@ void VulkanApplication::createDepthResources()
         .sharingMode = vk::SharingMode::eExclusive,
         .initialLayout = vk::ImageLayout::eUndefined,
     };
-    vma::AllocationCreateInfo allocInfo{};
-    allocInfo.usage = vma::MemoryUsage::eGpuOnly;
+    vma::AllocationCreateInfo allocInfo;
+    allocInfo.setUsage(vma::MemoryUsage::eGpuOnly);
     std::tie(depthResources.image, depthResources.memory) = allocator.createImage(imageInfo, allocInfo);
 
     auto createInfo = vk_init::populateVkImageViewCreateInfo(depthResources.image, depthFormat);
@@ -767,7 +754,7 @@ void VulkanApplication::createImgui()
 
     ImGui_ImplVulkan_DestroyFontUploadObjects();
 
-    swapchainDeletionQueue.push([=, this] {
+    swapchainDeletionQueue.push([imguiPool, this] {
         vkDestroyDescriptorPool(device, imguiPool, nullptr);
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplGlfw_Shutdown();
@@ -802,8 +789,8 @@ void VulkanApplication::recreateSwapchain()
     createTextureDescriptorSets();
     createCommandBuffers();
     createImgui();
-    logger->info("Swapchain") << "Swapchain recreation complete... { height=" << swapchain.getSwapchainExtent().height
-                              << ", width =" << swapchain.getSwapchainExtent().width
+    logger->info("Swapchain") << "Swapchain recreation complete... { height = " << swapchain.getSwapchainExtent().height
+                              << ", width = " << swapchain.getSwapchainExtent().width
                               << ", number = " << swapchain.nbOfImage() << " }";
     LOGGER_ENDL;
     ImGui_ImplVulkan_SetMinImageCount(swapchain.nbOfImage());

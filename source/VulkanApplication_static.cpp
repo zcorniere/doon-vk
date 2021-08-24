@@ -1,10 +1,10 @@
-#include <Window.hpp>
+#include <GLFW/glfw3.h>
 #include <ostream>
 #include <stdint.h>
 #include <string.h>
 #include <string>
 #include <vector>
-#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan.hpp>
 
 #include "Logger.hpp"
 #include "VulkanApplication.hpp"

@@ -1,13 +1,11 @@
-#include <cstring>
-#include <ext/alloc_traits.h>
 #include <functional>
 #include <set>
 #include <stdexcept>
 #include <stdint.h>
 #include <string>
 #include <vector>
-#include <vk_mem_alloc.h>
-#include <vulkan/vulkan_core.h>
+#include <vk_mem_alloc.hpp>
+#include <vulkan/vulkan.hpp>
 
 #include "Camera.hpp"
 #include "DebugMacros.hpp"
@@ -15,7 +13,6 @@
 #include "SwapChainSupportDetails.hpp"
 #include "VulkanApplication.hpp"
 #include "types/AllocatedBuffer.hpp"
-#include "types/Mesh.hpp"
 #include "vk_utils.hpp"
 
 void VulkanApplication::copyBufferToBuffer(const vk::Buffer &srcBuffer, vk::Buffer &dstBuffer,
@@ -63,12 +60,12 @@ void VulkanApplication::immediateCommand(std::function<void(vk::CommandBuffer &)
         .commandBufferCount = 1,
     };
 
-    vk::CommandBuffer cmd{};
-    device.allocateCommandBuffers(cmdAllocInfo);
+    vk::CommandBuffer cmd = device.allocateCommandBuffers(cmdAllocInfo)[0];
 
     vk::CommandBufferBeginInfo cmdBeginInfo{
         .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
     };
+
     cmd.begin(cmdBeginInfo);
     function(cmd);
     cmd.end();
@@ -100,8 +97,6 @@ void VulkanApplication::transitionImageLayout(vk::Image &image, vk::Format forma
         .dstAccessMask = vk::AccessFlagBits::eNoneKHR,
         .oldLayout = oldLayout,
         .newLayout = newLayout,
-        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         .image = image,
         .subresourceRange =
             {
@@ -150,7 +145,7 @@ void VulkanApplication::transitionImageLayout(vk::Image &image, vk::Format forma
     }
 
     immediateCommand([&](vk::CommandBuffer &cmd) {
-        cmd.pipelineBarrier(sourceStage, destinationStage, vk::DependencyFlags{}, nullptr, nullptr, barrier);
+        cmd.pipelineBarrier(sourceStage, destinationStage, {}, nullptr, nullptr, barrier);
     });
 }
 

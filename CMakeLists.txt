@@ -33,7 +33,6 @@ add_subdirectory(lib)
 
 add_executable(${PROJECT_NAME} source/main.cpp
                                source/Window.cpp
-                               source/VulkanException.cpp
                                source/VulkanApplication.cpp
                                source/VulkanApplication_helpers.cpp
                                source/VulkanApplication_static.cpp
@@ -47,9 +46,8 @@ add_executable(${PROJECT_NAME} source/main.cpp
                                source/Application.cpp
 )
 
-target_precompile_headers(${PROJECT_NAME} PUBLIC <vector> <set> <unordered_map> <deque> <functional>
-                                                 <DeletionQueue.hpp> <vulkan/vulkan.hpp>
-                                                 <Logger.hpp> <glm/glm.hpp> <GLFW/glfw3.h>
+target_precompile_headers(${PROJECT_NAME} PUBLIC <Logger.hpp> <unordered_map> <vector> <DeletionQueue.hpp>
+                                                 <vulkan/vulkan.hpp> <glm/glm.hpp> <VulkanApplication.hpp>
                                                  <vk_mem_alloc.hpp>
 )
 

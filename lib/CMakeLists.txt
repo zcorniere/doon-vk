@@ -15,7 +15,7 @@ set_source_files_properties(
     LANGUAGE CXX
 )
 target_include_directories(VulkanMemoryAllocator PUBLIC VulkanMemoryAllocator-Hpp/)
-target_compile_definitions(VulkanMemoryAllocator PRIVATE VMA_IMPLEMENTATION)
+target_compile_definitions(VulkanMemoryAllocator PRIVATE VMA_IMPLEMENTATION VMA_USE_STL_CONTAINERS)
 set_target_properties(VulkanMemoryAllocator PROPERTIES LINKER_LANGUAGE CXX)
 
 add_library(stb STATIC stb/stb_image.h)

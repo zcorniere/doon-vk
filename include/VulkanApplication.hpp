@@ -2,25 +2,20 @@
 
 #include <cstring>
 #include <functional>
-#include <stdexcept>
 #include <stdint.h>
 #include <string>
 #include <unordered_map>
 #include <vector>
 #include <vk_mem_alloc.hpp>
-#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan.hpp>
 
 #include "DeletionQueue.hpp"
-#include "QueueFamilyIndices.hpp"
 #include "Swapchain.hpp"
 #include "Window.hpp"
 #include "types/AllocatedBuffer.hpp"
 #include "types/CreationParameters.hpp"
 #include "types/Frame.hpp"
-#include "types/Material.hpp"
 #include "types/Mesh.hpp"
-#include "types/Vertex.hpp"
-#include "types/vk_types.hpp"
 #include "vk_utils.hpp"
 
 const std::vector<const char *> validationLayers = {

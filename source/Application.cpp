@@ -205,14 +205,7 @@ void Application::loadTextures()
 
         std::tie(image.image, image.memory) = allocator.createImage(imageInfo, allocInfo);
 
-        vk::ImageViewCreateInfo createInfo{
-            .image = image.image,
-            .format = vk::Format::eR8G8B8A8Srgb,
-            .subresourceRange =
-                {
-                    .levelCount = mipLevels,
-                },
-        };
+        auto createInfo = vk_init::populateVkImageViewCreateInfo(image.image, vk::Format::eR8G8B8A8Srgb, mipLevels);
         image.imageView = device.createImageView(createInfo);
 
         transitionImageLayout(image.image, vk::Format::eR8G8B8A8Srgb, vk::ImageLayout::eUndefined,
@@ -236,6 +229,7 @@ void Application::loadTextures()
 
 void Application::run()
 {
+    DEBUG_FUNCTION;
     float fElapsedTime = 0;
 
     scene.addObject({
@@ -341,7 +335,6 @@ void Application::drawFrame()
     vk::Result result;
 
     VK_TRY(device.waitForFences(frame.inFlightFences, VK_TRUE, UINT64_MAX));
-
     std::tie(result, imageIndex) =
         device.acquireNextImageKHR(swapchain.getSwapchain(), UINT64_MAX, frame.imageAvailableSemaphore);
 
@@ -398,16 +391,18 @@ void Application::drawFrame()
     VK_TRY(cmd.begin(&beginInfo));
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, frame.data.objectDescriptor, nullptr);
-    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, texturesSet, nullptr);
+    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 1, texturesSet, nullptr);
     cmd.pushConstants<Camera::GPUCameraData>(
         pipelineLayout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, gpuCamera);
-    cmd.bindVertexBuffers(1, vertexBuffers.buffer, nullptr);
+
+    vk::DeviceSize offset = 0;
+    cmd.bindVertexBuffers(0, vertexBuffers.buffer, offset);
     cmd.bindIndexBuffer(indicesBuffers.buffer, 0, vk::IndexType::eUint32);
     cmd.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
     {
         for (const auto &draw: scene.getDrawBatch()) {
             cmd.drawIndexedIndirect(frame.indirectBuffer.buffer, draw.first * sizeof(vk::DrawIndexedIndirectCommand),
-                                    draw.count, sizeof(sizeof(vk::DrawIndexedIndirectCommand)));
+                                    draw.count, sizeof(vk::DrawIndexedIndirectCommand));
         }
     }
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);

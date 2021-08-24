@@ -5,15 +5,14 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <vulkan/vulkan.h>
-#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan.hpp>
 
 #include "types/VulkanException.hpp"
 
 #define VK_TRY(x)                                                        \
     {                                                                    \
         vk::Result err = x;                                              \
-        if (err >= vk::Result::eSuccess) { throw VulkanException(err); } \
+        if (err != vk::Result::eSuccess) { throw VulkanException(err); } \
     }
 
 namespace vk_utils

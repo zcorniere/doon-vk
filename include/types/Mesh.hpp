@@ -1,8 +1,8 @@
 #pragma once
 
-#include "types/AllocatedBuffer.hpp"
 #include "types/Vertex.hpp"
 #include <vector>
+
 #include <vulkan/vulkan.hpp>
 
 struct CPUMesh {

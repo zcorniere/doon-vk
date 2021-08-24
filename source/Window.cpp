@@ -11,12 +11,14 @@ Window::~Window()
     glfwTerminate();
 }
 
-void Window::createSurface(const vk::Instance &instance, vk::SurfaceKHR *surface)
+vk::SurfaceKHR Window::createSurface(const vk::Instance &instance)
 {
     DEBUG_FUNCTION
-    if (glfwCreateWindowSurface(instance, window, nullptr, reinterpret_cast<VkSurfaceKHR *>(surface)) != VK_SUCCESS) {
+    VkSurfaceKHR surface{};
+    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
         throw std::runtime_error("failed to create surface");
     }
+    return surface;
 }
 
 void Window::initWindow()

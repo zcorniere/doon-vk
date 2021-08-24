@@ -1,7 +1,5 @@
 #pragma once
 
-#include "VulkanApplication.hpp"
-#include "types/AllocatedBuffer.hpp"
 #include "types/RenderObject.hpp"
 
 #include <vector>

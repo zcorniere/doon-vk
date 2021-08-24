@@ -1,7 +1,6 @@
 #pragma once
 
 #include <GLFW/glfw3.h>
-#include <functional>
 #include <string>
 #include <vulkan/vulkan.hpp>
 
@@ -15,7 +14,7 @@ public:
     GLFWwindow *getWindow() { return window; }
     inline bool shouldClose() const { return glfwWindowShouldClose(window); }
     inline void pollEvent() { glfwPollEvents(); }
-    void createSurface(const vk::Instance &, vk::SurfaceKHR *);
+    vk::SurfaceKHR createSurface(const vk::Instance &);
     inline bool isKeyPressed(unsigned key) const { return glfwGetKey(this->window, key) == GLFW_PRESS; }
 
     void setKeyCallback(GLFWkeyfun &&f);
