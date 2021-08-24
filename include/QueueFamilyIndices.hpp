@@ -19,7 +19,7 @@ struct QueueFamilyIndices {
         std::vector<VkQueueFamilyProperties> family_property_list(uFamilyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(device, &uFamilyCount, family_property_list.data());
 
-        for (uint32_t i = 0; i < uFamilyCount; ++i) {
+        for (uint32_t i = 0; i < uFamilyCount && !indices.isComplete(); ++i) {
             if (family_property_list.at(i).queueFlags & VK_QUEUE_GRAPHICS_BIT) indices.graphicsFamily = i;
 
             VkBool32 presentSupport = false;
