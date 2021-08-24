@@ -144,8 +144,7 @@ void VulkanApplication::pickPhysicalDevice()
 {
     DEBUG_FUNCTION
     for (const auto &device: vk_utils::getPhysicalDevices(instance)) {
-        // if (isDeviceSuitable(device, surface)) {
-        if (true) {
+        if (isDeviceSuitable(device, surface)) {
             physical_device = device;
             maxMsaaSample = getMexUsableSampleCount(physical_device);
             creationParameters.msaaSample = maxMsaaSample;
@@ -214,11 +213,12 @@ void VulkanApplication::createLogicalDevice()
 void VulkanApplication::createAllocator()
 {
     DEBUG_FUNCTION
-    vma::AllocatorCreateInfo allocatorInfo{};
+    vma::AllocatorCreateInfo allocatorInfo;
     allocatorInfo.physicalDevice = physical_device;
     allocatorInfo.device = device;
     allocatorInfo.instance = instance;
     allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_2;
+    allocatorInfo.frameInUseCount = MAX_FRAME_FRAME_IN_FLIGHT;
 
     allocator = vma::createAllocator(allocatorInfo);
     mainDeletionQueue.push([&] { allocator.destroy(); });
@@ -680,7 +680,7 @@ void VulkanApplication::createDepthResources()
     };
     vma::AllocationCreateInfo allocInfo{};
     allocInfo.usage = vma::MemoryUsage::eGpuOnly;
-    allocator.createImage(imageInfo, allocInfo);
+    std::tie(depthResources.image, depthResources.memory) = allocator.createImage(imageInfo, allocInfo);
 
     auto createInfo = vk_init::populateVkImageViewCreateInfo(depthResources.image, depthFormat);
     createInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
@@ -711,7 +711,7 @@ void VulkanApplication::createColorResources()
     };
     vma::AllocationCreateInfo allocInfo{};
     allocInfo.usage = vma::MemoryUsage::eGpuOnly;
-    allocator.createImage(imageInfo, allocInfo);
+    std::tie(colorImage.image, colorImage.memory) = allocator.createImage(imageInfo, allocInfo);
 
     auto createInfo = vk_init::populateVkImageViewCreateInfo(colorImage.image, swapchain.getSwapchainFormat());
     createInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;

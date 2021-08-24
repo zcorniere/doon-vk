@@ -46,7 +46,7 @@ private:
 
 private:
     DeletionQueue chainDeletionQueue;
-    vk::Extent2D swapChainExtent = {.width = 0, .height = 0};
+    vk::Extent2D swapChainExtent;
     vk::Format swapChainImageFormat;
 
     vk::SwapchainKHR swapChain = VK_NULL_HANDLE;
