@@ -9,8 +9,15 @@ add_subdirectory(tinyobjloader/ EXCLUDE_FROM_ALL)
 set(VMA_USE_STL_CONTAINERS ON)
 add_subdirectory(VulkanMemoryAllocator/ EXCLUDE_FROM_ALL)
 
-add_library(stb stb/stb_image.c)
+add_library(stb STATIC stb/stb_image.h)
+set_source_files_properties(
+    stb/stb_image.h PROPERTIES
+    LANGUAGE C
+)
+target_compile_definitions(stb PRIVATE STB_IMAGE_IMPLEMENTATION)
 target_include_directories(stb PUBLIC stb/)
+set_target_properties(stb PROPERTIES LINKER_LANGUAGE C)
+
 
 add_library(imgui imgui/imgui.cpp
                   imgui/imgui_widgets.cpp

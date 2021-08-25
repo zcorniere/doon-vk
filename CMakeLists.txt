@@ -10,6 +10,12 @@ set(CXX clang++)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+option(CLANG_TIME_TRACE "Enable clang profiling." OFF)
+
+if(CLANG_TIME_TRACE)
+    message(STATUS "Clang profiling - enabled")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftime-trace")
+endif()
 
 message(STATUS "Looking for lld")
 find_program(LLD_FOUND lld)
@@ -40,6 +46,12 @@ add_executable(${PROJECT_NAME} source/main.cpp
                                source/Scene.cpp
                                source/Swapchain.cpp
                                source/Application.cpp
+)
+
+target_precompile_headers(${PROJECT_NAME} PUBLIC <vector> <set> <unordered_map> <deque> <functional>
+                                                 <DeletionQueue.hpp> <vulkan/vulkan.hpp>
+                                                 <Logger.hpp> <glm/glm.hpp> <GLFW/glfw3.h>
+                                                 <vk_mem_alloc.hpp>
 )
 
 add_shader(${PROJECT_NAME} default_triangle.vert)
