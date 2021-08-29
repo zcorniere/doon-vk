@@ -1,7 +1,5 @@
 #pragma once
 
-#include "VulkanApplication.hpp"
-#include "types/AllocatedBuffer.hpp"
 #include "types/RenderObject.hpp"
 
 #include <vector>
@@ -26,7 +24,7 @@ public:
         bNeedRebuild = true;
     }
 
-    inline void removeObject(const auto index)
+    void removeObject(const auto index)
     {
         sceneModels.erase(sceneModels.begin() + index);
         bNeedRebuild = true;

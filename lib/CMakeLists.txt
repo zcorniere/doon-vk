@@ -6,8 +6,17 @@ add_subdirectory(logger-cpp/ EXCLUDE_FROM_ALL)
 
 add_subdirectory(tinyobjloader/ EXCLUDE_FROM_ALL)
 
-set(VMA_USE_STL_CONTAINERS ON)
-add_subdirectory(VulkanMemoryAllocator/ EXCLUDE_FROM_ALL)
+# set(VMA_USE_STL_CONTAINERS ON)
+# add_subdirectory(VulkanMemoryAllocator/ EXCLUDE_FROM_ALL)
+
+add_library(VulkanMemoryAllocator STATIC VulkanMemoryAllocator-Hpp/vk_mem_alloc.h)
+set_source_files_properties(
+    VulkanMemoryAllocator-Hpp/vk_mem_alloc.h PROPERTIES
+    LANGUAGE CXX
+)
+target_include_directories(VulkanMemoryAllocator PUBLIC VulkanMemoryAllocator-Hpp/)
+target_compile_definitions(VulkanMemoryAllocator PRIVATE VMA_IMPLEMENTATION VMA_USE_STL_CONTAINERS)
+set_target_properties(VulkanMemoryAllocator PROPERTIES LINKER_LANGUAGE CXX)
 
 add_library(stb STATIC stb/stb_image.h)
 set_source_files_properties(

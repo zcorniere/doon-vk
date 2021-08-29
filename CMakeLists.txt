@@ -33,8 +33,6 @@ add_subdirectory(lib)
 
 add_executable(${PROJECT_NAME} source/main.cpp
                                source/Window.cpp
-                               source/VulkanException.cpp
-                               source/VulkanLoader.cpp
                                source/VulkanApplication.cpp
                                source/VulkanApplication_helpers.cpp
                                source/VulkanApplication_static.cpp
@@ -48,9 +46,8 @@ add_executable(${PROJECT_NAME} source/main.cpp
                                source/Application.cpp
 )
 
-target_precompile_headers(${PROJECT_NAME} PUBLIC <vector> <set> <unordered_map> <deque> <functional>
-                                                 <DeletionQueue.hpp> <vulkan/vulkan.hpp>
-                                                 <Logger.hpp> <glm/glm.hpp> <GLFW/glfw3.h>
+target_precompile_headers(${PROJECT_NAME} PUBLIC <Logger.hpp> <unordered_map> <vector> <DeletionQueue.hpp>
+                                                 <vulkan/vulkan.hpp> <glm/glm.hpp> <VulkanApplication.hpp>
                                                  <vk_mem_alloc.hpp>
 )
 
@@ -58,14 +55,15 @@ add_shader(${PROJECT_NAME} default_triangle.vert)
 add_shader(${PROJECT_NAME} default_triangle.frag)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
-  -DGLM_FORCE_INLINE
-  -DGLM_FORCE_RADIANS
-  -DGLM_FORCE_DEPTH_ZERO_TO_ONE
-  -DGLM_FORCE_DEFAULT_ALIGNED_GENTYPES
-  -DGLFW_INCLUDE_NONE
-  -DGLFW_INCLUDE_VULKAN
-  -DMAX_PROJECTION_LIMIT=200.0f
-  -DLOGGER_EXTERN_DECLARATION_PTR
+  GLM_FORCE_INLINE
+  GLM_FORCE_RADIANS
+  GLM_FORCE_DEPTH_ZERO_TO_ONE
+  GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+  GLFW_INCLUDE_NONE
+  GLFW_INCLUDE_VULKAN
+  MAX_PROJECTION_LIMIT=200.0f
+  LOGGER_EXTERN_DECLARATION_PTR
+  VULKAN_HPP_NO_CONSTRUCTORS
 )
 
 if(MSVC)

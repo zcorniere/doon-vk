@@ -3,34 +3,34 @@
 #include "Window.hpp"
 #include <algorithm>
 #include <vector>
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan.hpp>
 
 struct SwapChainSupportDetails {
-    VkSurfaceCapabilitiesKHR capabilities;
-    std::vector<VkSurfaceFormatKHR> formats;
-    std::vector<VkPresentModeKHR> presentModes;
+    vk::SurfaceCapabilitiesKHR capabilities;
+    std::vector<vk::SurfaceFormatKHR> formats;
+    std::vector<vk::PresentModeKHR> presentModes;
 
-    VkSurfaceFormatKHR chooseSwapSurfaceFormat()
+    vk::SurfaceFormatKHR chooseSwapSurfaceFormat()
     {
         for (const auto &availableFormat: formats) {
-            if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
-                availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            if (availableFormat.format == vk::Format::eB8G8R8A8Srgb &&
+                availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
                 return availableFormat;
             }
         }
         return formats.at(0);
     }
 
-    VkPresentModeKHR chooseSwapPresentMode()
+    vk::PresentModeKHR chooseSwapPresentMode()
     {
         for (const auto &availablePresentMode: presentModes) {
-            if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) { return availablePresentMode; }
+            if (availablePresentMode == vk::PresentModeKHR::eMailbox) { return availablePresentMode; }
         }
 
-        return VK_PRESENT_MODE_FIFO_KHR;
+        return vk::PresentModeKHR::eFifo;
     }
 
-    VkExtent2D chooseSwapExtent(Window &window)
+    vk::Extent2D chooseSwapExtent(Window &window)
     {
         if (capabilities.currentExtent.width != UINT32_MAX) {
             return capabilities.currentExtent;
@@ -38,7 +38,10 @@ struct SwapChainSupportDetails {
             int width, height;
             glfwGetFramebufferSize(window.getWindow(), &width, &height);
 
-            VkExtent2D actualExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
+            vk::Extent2D actualExtent{
+                .width = static_cast<uint32_t>(width),
+                .height = static_cast<uint32_t>(height),
+            };
 
             actualExtent.width =
                 std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
@@ -49,24 +52,13 @@ struct SwapChainSupportDetails {
         }
     }
 
-    static SwapChainSupportDetails querySwapChainSupport(const VkPhysicalDevice &device, const VkSurfaceKHR &surface)
+    static SwapChainSupportDetails querySwapChainSupport(const vk::PhysicalDevice &device,
+                                                         const vk::SurfaceKHR &surface)
     {
-        SwapChainSupportDetails details;
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
-
-        uint32_t formatCount;
-        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
-        if (formatCount != 0) {
-            details.formats.resize(formatCount);
-            vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.formats.data());
-        }
-
-        uint32_t presentModeCount;
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr);
-        if (presentModeCount != 0) {
-            details.presentModes.resize(presentModeCount);
-            vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, details.presentModes.data());
-        }
-        return details;
+        return SwapChainSupportDetails{
+            .capabilities = device.getSurfaceCapabilitiesKHR(surface),
+            .formats = device.getSurfaceFormatsKHR(surface),
+            .presentModes = device.getSurfacePresentModesKHR(surface),
+        };
     }
 };

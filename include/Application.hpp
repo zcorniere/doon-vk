@@ -1,14 +1,11 @@
 #pragma once
 
-#include <Window.hpp>
 #include <vector>
-#include <vulkan/vulkan_core.h>
 
 #include "DeletionQueue.hpp"
 #include "Player.hpp"
 #include "VulkanApplication.hpp"
 #include "types/Material.hpp"
-#include "types/RenderObject.hpp"
 #include "types/Scene.hpp"
 
 #define WINDOW_TITLE_MAX_SIZE 128
@@ -51,8 +48,9 @@ private:
         bool bShowFpsInTitle = false;
         bool bWireFrameMode = false;
         bool bTmpObject = false;
-        VkClearColorValue vClearColor = {{0.0f, 0.0f, 0.0f, 1.0f}};
+        std::array<float, 4> vClearColor = {0.0f, 0.0f, 0.0f, 1.0f};
     } uiRessources = {};
+
     Player player;
     Scene scene;
     std::vector<gpuObject::Material> materials;

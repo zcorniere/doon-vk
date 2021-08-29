@@ -1,8 +1,6 @@
 #pragma once
 
 #include <glm/glm.hpp>
-#include <optional>
-#include <vulkan/vulkan.h>
 
 namespace gpuObject
 {
