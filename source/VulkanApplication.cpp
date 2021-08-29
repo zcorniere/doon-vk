@@ -29,23 +29,7 @@
 #define MAX_COMMANDS 100
 #define MAX_MATERIALS 100
 
-PFN_vkCreateDebugUtilsMessengerEXT pfnVkCreateDebugUtilsMessengerEXT;
-PFN_vkDestroyDebugUtilsMessengerEXT pfnVkDestroyDebugUtilsMessengerEXT;
-VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugUtilsMessengerEXT(VkInstance instance,
-                                                              const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
-                                                              const VkAllocationCallbacks *pAllocator,
-                                                              VkDebugUtilsMessengerEXT *pMessenger)
-{
-    return pfnVkCreateDebugUtilsMessengerEXT(instance, pCreateInfo, pAllocator, pMessenger);
-}
-
-VKAPI_ATTR void VKAPI_CALL vkDestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT messenger,
-                                                           VkAllocationCallbacks const *pAllocator)
-{
-    return pfnVkDestroyDebugUtilsMessengerEXT(instance, messenger, pAllocator);
-}
-
-VulkanApplication::VulkanApplication(): window("Vulkan", 800, 600)
+VulkanApplication::VulkanApplication(): VulkanLoader(), window("Vulkan", 800, 600)
 {
     DEBUG_FUNCTION
     window.setUserPointer(this);
@@ -118,7 +102,7 @@ void VulkanApplication::initInstance()
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
         createInfo.ppEnabledLayerNames = validationLayers.data();
     }
-    instance = vk::createInstance(createInfo);
+    this->VulkanLoader::createInstance(createInfo);
     mainDeletionQueue.push([&] { instance.destroy(); });
 }
 
@@ -127,13 +111,8 @@ void VulkanApplication::initDebug()
     DEBUG_FUNCTION
     if (!enableValidationLayers) return;
     auto debugInfo = vk_init::populateDebugUtilsMessengerCreateInfoEXT(&VulkanApplication::debugCallback);
-
-    pfnVkCreateDebugUtilsMessengerEXT =
-        reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(instance.getProcAddr("vkCreateDebugUtilsMessengerEXT"));
-    pfnVkDestroyDebugUtilsMessengerEXT =
-        reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(instance.getProcAddr("vkDestroyDebugUtilsMessengerEXT"));
-
     debugUtilsMessenger = instance.createDebugUtilsMessengerEXT(debugInfo);
+
     logger->warn("Validation Layers") << "Validation Layers are activated !";
     LOGGER_ENDL;
     mainDeletionQueue.push([&] { instance.destroyDebugUtilsMessengerEXT(debugUtilsMessenger); });
@@ -203,7 +182,7 @@ void VulkanApplication::createLogicalDevice()
         .ppEnabledExtensionNames = deviceExtensions.data(),
         .pEnabledFeatures = &deviceFeature,
     };
-    device = physical_device.createDevice(createInfo);
+    this->VulkanLoader::createLogicalDevice(physical_device, createInfo);
     mainDeletionQueue.push([&] { device.destroy(); });
 
     graphicsQueue = device.getQueue(indices.graphicsFamily.value(), 0);

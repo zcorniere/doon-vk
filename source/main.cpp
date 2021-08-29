@@ -8,6 +8,8 @@
 #include "types/VulkanException.hpp"
 #include <getopt.h>
 
+VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE;
+
 Logger *logger = nullptr;
 
 __attribute__((constructor)) void ctor()

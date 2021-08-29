@@ -11,6 +11,7 @@
 
 #include "DeletionQueue.hpp"
 #include "Swapchain.hpp"
+#include "VulkanLoader.hpp"
 #include "Window.hpp"
 #include "types/AllocatedBuffer.hpp"
 #include "types/CreationParameters.hpp"
@@ -27,7 +28,7 @@ const std::vector<const char *> deviceExtensions = {
 
 constexpr uint8_t MAX_FRAME_FRAME_IN_FLIGHT = 3;
 
-class VulkanApplication
+class VulkanApplication : protected VulkanLoader
 {
 public:
 #ifdef NDEBUG
@@ -103,11 +104,9 @@ public:
 protected:
     CreationParameters creationParameters = {};
     Window window;
-    vk::Instance instance;
     vk::DebugUtilsMessengerEXT debugUtilsMessenger = VK_NULL_HANDLE;
     vk::PhysicalDevice physical_device = VK_NULL_HANDLE;
     vk::SampleCountFlagBits maxMsaaSample = vk::SampleCountFlagBits::e1;
-    vk::Device device = VK_NULL_HANDLE;
     vma::Allocator allocator;
 
     //  Queues

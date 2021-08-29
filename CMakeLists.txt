@@ -31,6 +31,7 @@ add_subdirectory(lib)
 
 add_executable(${PROJECT_NAME} source/main.cpp
                                source/Window.cpp
+                               source/VulkanLoader.cpp
                                source/VulkanApplication.cpp
                                source/VulkanApplication_helpers.cpp
                                source/VulkanApplication_static.cpp
@@ -59,9 +60,10 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
   GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
   GLFW_INCLUDE_NONE
   GLFW_INCLUDE_VULKAN
-  MAX_PROJECTION_LIMIT=200.0f
+  MAX_PROJECTION_LIMIT=200.0
   LOGGER_EXTERN_DECLARATION_PTR
   VULKAN_HPP_NO_CONSTRUCTORS
+  VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1
 )
 
 if(MSVC)
