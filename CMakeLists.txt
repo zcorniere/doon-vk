@@ -5,8 +5,6 @@ find_package(Vulkan REQUIRED)
 
 include(shaders/CMakeRule.txt)
 
-set(CC clang)
-set(CXX clang++)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
