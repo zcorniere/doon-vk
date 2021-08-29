@@ -69,11 +69,11 @@ private:
                                   const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *);
     static void framebufferResizeCallback(GLFWwindow *, int, int);
     static vk::SampleCountFlagBits getMexUsableSampleCount(vk::PhysicalDevice &physical_device);
+    static bool isDeviceSuitable(const vk::PhysicalDevice &gpu, const vk::SurfaceKHR &surface);
+    static uint32_t rateDeviceSuitability(const vk::PhysicalDevice &device);
+    static bool checkDeviceExtensionSupport(const vk::PhysicalDevice &device);
 
 private:
-    bool isDeviceSuitable(const vk::PhysicalDevice &gpu, const vk::SurfaceKHR &surface);
-    bool checkDeviceExtensionSupport(const vk::PhysicalDevice &device);
-
     void initInstance();
     void initDebug();
     void pickPhysicalDevice();

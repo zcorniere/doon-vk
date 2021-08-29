@@ -1,12 +1,16 @@
 #include <GLFW/glfw3.h>
+#include <Logger.hpp>
 #include <ostream>
+#include <set>
 #include <stdint.h>
 #include <string.h>
 #include <string>
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
-#include "Logger.hpp"
+#include "Camera.hpp"
+#include "QueueFamilyIndices.hpp"
+#include "SwapChainSupportDetails.hpp"
 #include "VulkanApplication.hpp"
 
 std::vector<const char *> VulkanApplication::getRequiredExtensions(bool bEnableValidationLayers)
@@ -95,4 +99,44 @@ bool VulkanApplication::checkValiationLayerSupport()
         if (!layerFound) return false;
     }
     return true;
+}
+
+bool VulkanApplication::isDeviceSuitable(const vk::PhysicalDevice &gpu, const vk::SurfaceKHR &surface)
+{
+    DEBUG_FUNCTION
+    auto indices = QueueFamilyIndices::findQueueFamilies(gpu, surface);
+    bool extensionsSupported = checkDeviceExtensionSupport(gpu);
+    vk::PhysicalDeviceProperties deviceProperties = gpu.getProperties();
+    vk::PhysicalDeviceFeatures deviceFeatures = gpu.getFeatures();
+
+    bool swapChainAdequate = false;
+    if (extensionsSupported) {
+        auto swapChainSupport = SwapChainSupportDetails::querySwapChainSupport(gpu, surface);
+        swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
+    }
+    return indices.isComplete() && extensionsSupported && swapChainAdequate && deviceFeatures.samplerAnisotropy &&
+           deviceProperties.limits.maxPushConstantsSize >= sizeof(Camera::GPUCameraData);
+}
+
+uint32_t VulkanApplication::rateDeviceSuitability(const vk::PhysicalDevice &gpu)
+{
+    vk::PhysicalDeviceProperties deviceProperties = gpu.getProperties();
+    // vk::PhysicalDeviceFeatures deviceFeatures = gpu.getFeatures();
+    int32_t score = 0;
+
+    if (deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu) score += 1000;
+
+    score += deviceProperties.limits.maxPushConstantsSize;
+    score += deviceProperties.limits.maxImageDimension2D;
+    return score;
+}
+
+bool VulkanApplication::checkDeviceExtensionSupport(const vk::PhysicalDevice &device)
+{
+    DEBUG_FUNCTION
+    auto availableExtensions = device.enumerateDeviceExtensionProperties();
+
+    std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+    for (const auto &extension: availableExtensions) { requiredExtensions.erase(extension.extensionName); }
+    return requiredExtensions.empty();
 }

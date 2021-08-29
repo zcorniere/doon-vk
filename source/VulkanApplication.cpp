@@ -6,8 +6,10 @@
 #include <backends/imgui_impl_vulkan.h>
 #include <cstdint>
 #include <iterator>
+#include <map>
 #include <numeric>
 #include <optional>
+#include <ranges>
 #include <set>
 #include <stdexcept>
 #include <vk_mem_alloc.hpp>
@@ -121,22 +123,24 @@ void VulkanApplication::initDebug()
 void VulkanApplication::pickPhysicalDevice()
 {
     DEBUG_FUNCTION
-    for (const auto &device: vk_utils::getPhysicalDevices(instance)) {
-        if (isDeviceSuitable(device, surface)) {
-            physical_device = device;
-            maxMsaaSample = getMexUsableSampleCount(physical_device);
-            creationParameters.msaaSample = maxMsaaSample;
-            break;
-        }
+    std::vector<vk::PhysicalDevice> gpus = instance.enumeratePhysicalDevices();
+    std::multimap<uint32_t, vk::PhysicalDevice> ratedGpus;
+
+    for (const auto &i:
+         gpus | std::views::filter([&](const vk::PhysicalDevice &gpu) { return isDeviceSuitable(gpu, surface); })) {
+        ratedGpus.insert(std::make_pair(rateDeviceSuitability(i), i));
     }
-    if (!physical_device) {
-        throw VulkanException("failed to find suitable GPU");
+    if (ratedGpus.rbegin()->first > 0) {
+        physical_device = ratedGpus.rbegin()->second;
+        maxMsaaSample = getMexUsableSampleCount(physical_device);
+        creationParameters.msaaSample = maxMsaaSample;
     } else {
-        vk::PhysicalDeviceProperties deviceProperties = physical_device.getProperties();
-        logger->info(vk_utils::tools::physicalDeviceTypeString(deviceProperties.deviceType))
-            << deviceProperties.deviceName;
-        LOGGER_ENDL;
+        throw VulkanException("failed to find a suitable GPU!");
     }
+
+    const auto deviceProperties = physical_device.getProperties();
+    logger->info(vk::to_string(deviceProperties.deviceType)) << deviceProperties.deviceName;
+    LOGGER_ENDL;
 }
 
 void VulkanApplication::initSurface()
@@ -719,24 +723,23 @@ void VulkanApplication::createImgui()
     ImGui::CreateContext();
     ImGui_ImplGlfw_InitForVulkan(window.getWindow(), true);
 
-    ImGui_ImplVulkan_InitInfo init_info{
-        .Instance = instance,
-        .PhysicalDevice = physical_device,
+    ImGui_ImplVulkan_InitInfo init_info{};
 
-        .Device = device,
-        .QueueFamily = indices.graphicsFamily.value(),
-        .Queue = graphicsQueue,
-        .PipelineCache = VK_NULL_HANDLE,
-        .DescriptorPool = imguiPool,
-        .MinImageCount = swapchain.nbOfImage(),
-        .ImageCount = swapchain.nbOfImage(),
-        .MSAASamples = static_cast<VkSampleCountFlagBits>(creationParameters.msaaSample),
-        .CheckVkResultFn = vk_utils::vk_try,
-    };
+    init_info.Instance = instance;
+    init_info.PhysicalDevice = physical_device;
+    init_info.Device = device;
+    init_info.QueueFamily = indices.graphicsFamily.value();
+    init_info.Queue = graphicsQueue;
+    init_info.PipelineCache = VK_NULL_HANDLE;
+    init_info.DescriptorPool = imguiPool;
+    init_info.MinImageCount = swapchain.nbOfImage();
+    init_info.ImageCount = swapchain.nbOfImage();
+    init_info.MSAASamples = static_cast<VkSampleCountFlagBits>(creationParameters.msaaSample);
+    init_info.CheckVkResultFn = vk_utils::vk_try;
+
     ImGui_ImplVulkan_Init(&init_info, renderPass);
 
     immediateCommand([&](vk::CommandBuffer cmd) { ImGui_ImplVulkan_CreateFontsTexture(cmd); });
-
     ImGui_ImplVulkan_DestroyFontUploadObjects();
 
     swapchainDeletionQueue.push([imguiPool, this] {
@@ -759,7 +762,7 @@ void VulkanApplication::recreateSwapchain()
     logger->info("Swapchain") << "Recreaing swapchain...";
     LOGGER_ENDL;
 
-    vkDeviceWaitIdle(device);
+    device.waitIdle();
     swapchainDeletionQueue.flush();
 
     swapchain.recreate(window, physical_device, device, surface);

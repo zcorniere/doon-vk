@@ -42,7 +42,6 @@ bool vk_try_mutiple(const vk::Result result, const FailedValue... failedResult)
         return false;
     }
 }
-std::vector<vk::PhysicalDevice> getPhysicalDevices(vk::Instance &instance);
 
 namespace tools
 {

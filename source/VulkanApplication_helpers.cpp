@@ -1,5 +1,4 @@
 #include <functional>
-#include <set>
 #include <stdexcept>
 #include <stdint.h>
 #include <string>
@@ -7,10 +6,7 @@
 #include <vk_mem_alloc.hpp>
 #include <vulkan/vulkan.hpp>
 
-#include "Camera.hpp"
 #include "DebugMacros.hpp"
-#include "QueueFamilyIndices.hpp"
-#include "SwapChainSupportDetails.hpp"
 #include "VulkanApplication.hpp"
 #include "types/AllocatedBuffer.hpp"
 #include "vk_utils.hpp"
@@ -239,31 +235,4 @@ void VulkanApplication::generateMipmaps(vk::Image &image, vk::Format imageFormat
         cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader,
                             vk::DependencyFlags{}, nullptr, nullptr, barrier);
     });
-}
-
-bool VulkanApplication::isDeviceSuitable(const vk::PhysicalDevice &gpu, const vk::SurfaceKHR &surface)
-{
-    DEBUG_FUNCTION
-    auto indices = QueueFamilyIndices::findQueueFamilies(gpu, surface);
-    bool extensionsSupported = checkDeviceExtensionSupport(gpu);
-    vk::PhysicalDeviceProperties deviceProperties = gpu.getProperties();
-    vk::PhysicalDeviceFeatures deviceFeatures = gpu.getFeatures();
-
-    bool swapChainAdequate = false;
-    if (extensionsSupported) {
-        auto swapChainSupport = SwapChainSupportDetails::querySwapChainSupport(gpu, surface);
-        swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
-    }
-    return indices.isComplete() && extensionsSupported && swapChainAdequate && deviceFeatures.samplerAnisotropy &&
-           deviceProperties.limits.maxPushConstantsSize >= sizeof(Camera::GPUCameraData);
-}
-
-bool VulkanApplication::checkDeviceExtensionSupport(const vk::PhysicalDevice &device)
-{
-    DEBUG_FUNCTION
-    auto availableExtensions = device.enumerateDeviceExtensionProperties();
-
-    std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
-    for (const auto &extension: availableExtensions) { requiredExtensions.erase(extension.extensionName); }
-    return requiredExtensions.empty();
 }
