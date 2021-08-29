@@ -35,9 +35,4 @@ vk::PipelineLayoutCreateInfo populateVkPipelineLayoutCreateInfo(const std::vecto
 
 vk::PipelineDepthStencilStateCreateInfo populateVkPipelineDepthStencilStateCreateInfo();
 vk::PushConstantRange populateVkPushConstantRange(vk::ShaderStageFlags stage, uint32_t size, uint32_t offset = 0);
-
-namespace empty
-{
-    vk::PipelineLayoutCreateInfo populateVkPipelineLayoutCreateInfo();
-}
 }    // namespace vk_init

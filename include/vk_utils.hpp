@@ -9,10 +9,10 @@
 
 #include "types/VulkanException.hpp"
 
-#define VK_TRY(x)                                                        \
-    {                                                                    \
-        vk::Result err = x;                                              \
-        if (err != vk::Result::eSuccess) { throw VulkanException(err); } \
+#define VK_TRY(x)                                                       \
+    {                                                                   \
+        vk::Result err = x;                                             \
+        if (err < vk::Result::eSuccess) { throw VulkanException(err); } \
     }
 
 namespace vk_utils
@@ -23,7 +23,6 @@ concept is_copyable = requires
     std::is_standard_layout_v<T>;
     typename std::vector<T>;
 };
-void vk_try(vk::Result res);
 std::vector<std::byte> readFile(const std::string &filename);
 vk::ShaderModule createShaderModule(const vk::Device &device, const std::vector<std::byte> &code);
 vk::Format findSupportedFormat(vk::PhysicalDevice &gpu, const std::vector<vk::Format> &candidates,
@@ -31,8 +30,10 @@ vk::Format findSupportedFormat(vk::PhysicalDevice &gpu, const std::vector<vk::Fo
 bool hasStencilComponent(vk::Format format);
 uint32_t findMemoryType(vk::PhysicalDevice &physicalDevice, uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
+void vk_try(vk::Result res);
+void vk_try(VkResult res);
 template <class... FailedValue>
-bool isSwapchainInvalid(const vk::Result result, const FailedValue... failedResult)
+bool vk_try_mutiple(const vk::Result result, const FailedValue... failedResult)
 {
     if (((result == failedResult) || ...)) {
         return true;

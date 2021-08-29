@@ -204,7 +204,7 @@ void VulkanApplication::createLogicalDevice()
         .pEnabledFeatures = &deviceFeature,
     };
     device = physical_device.createDevice(createInfo);
-    mainDeletionQueue.push([=] { device.destroy(); });
+    mainDeletionQueue.push([&] { device.destroy(); });
 
     graphicsQueue = device.getQueue(indices.graphicsFamily.value(), 0);
     presentQueue = device.getQueue(indices.presentFamily.value(), 0);
@@ -713,6 +713,8 @@ void VulkanApplication::createColorResources()
 void VulkanApplication::createImgui()
 {
     DEBUG_FUNCTION
+    auto indices = QueueFamilyIndices::findQueueFamilies(physical_device, surface);
+
     vk::DescriptorPoolSize pool_sizes[] = {{vk::DescriptorType::eSampler, 1000},
                                            {vk::DescriptorType::eCombinedImageSampler, 1000},
                                            {vk::DescriptorType::eSampledImage, 1000},
@@ -741,12 +743,16 @@ void VulkanApplication::createImgui()
     ImGui_ImplVulkan_InitInfo init_info{
         .Instance = instance,
         .PhysicalDevice = physical_device,
+
         .Device = device,
+        .QueueFamily = indices.graphicsFamily.value(),
         .Queue = graphicsQueue,
+        .PipelineCache = VK_NULL_HANDLE,
         .DescriptorPool = imguiPool,
         .MinImageCount = swapchain.nbOfImage(),
         .ImageCount = swapchain.nbOfImage(),
         .MSAASamples = static_cast<VkSampleCountFlagBits>(creationParameters.msaaSample),
+        .CheckVkResultFn = vk_utils::vk_try,
     };
     ImGui_ImplVulkan_Init(&init_info, renderPass);
 

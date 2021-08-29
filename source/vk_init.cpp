@@ -136,12 +136,10 @@ vk::PipelineLayoutCreateInfo
 vk_init::populateVkPipelineLayoutCreateInfo(const std::vector<vk::DescriptorSetLayout> &setLayout,
                                             const std::vector<vk::PushConstantRange> &pushLayout)
 {
-    auto createInfo = empty::populateVkPipelineLayoutCreateInfo();
+    vk::PipelineLayoutCreateInfo createInfo;
 
-    createInfo.setLayoutCount = static_cast<uint32_t>(setLayout.size());
-    createInfo.pSetLayouts = setLayout.data();
-    createInfo.pushConstantRangeCount = static_cast<uint32_t>(pushLayout.size());
-    createInfo.pPushConstantRanges = pushLayout.data();
+    createInfo.setSetLayouts(setLayout);
+    createInfo.setPushConstantRanges(pushLayout);
     return createInfo;
 }
 
@@ -168,14 +166,4 @@ vk::PushConstantRange vk_init::populateVkPushConstantRange(vk::ShaderStageFlags 
     push_constant.size = size;
     push_constant.stageFlags = stage;
     return push_constant;
-}
-
-vk::PipelineLayoutCreateInfo vk_init::empty::populateVkPipelineLayoutCreateInfo()
-{
-    return vk::PipelineLayoutCreateInfo{
-        .setLayoutCount = 0,
-        .pSetLayouts = nullptr,
-        .pushConstantRangeCount = 0,
-        .pPushConstantRanges = nullptr,
-    };
 }

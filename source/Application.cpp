@@ -98,15 +98,14 @@ void Application::loadModel()
 
         for (const auto &shape: shapes) {
             for (const auto &index: shape.mesh.indices) {
-                Vertex vertex{
-                    .pos =
-                        {
-                            attrib.vertices[3 * index.vertex_index + 0],
-                            attrib.vertices[3 * index.vertex_index + 1],
-                            attrib.vertices[3 * index.vertex_index + 2],
-                        },
-                    .color = {1.0f, 1.0f, 1.0f},
+                Vertex vertex;
+                vertex.pos = {
+                    attrib.vertices[3 * index.vertex_index + 0],
+                    attrib.vertices[3 * index.vertex_index + 1],
+                    attrib.vertices[3 * index.vertex_index + 2],
                 };
+                vertex.color = {1.0f, 1.0f, 1.0f};
+
                 if (!attrib.normals.empty()) {
                     vertex.normal = {
                         attrib.normals[3 * index.normal_index + 0],
@@ -299,10 +298,15 @@ void Application::run()
             if (window.isKeyPressed(GLFW_KEY_LEFT_SHIFT)) player.processKeyboard(Camera::DOWN);
         }
 
-        drawImgui();
-        player.isFreeFly = uiRessources.cameraParamettersOverride.bFlyingCam;
-        player.update(fElapsedTime, -uiRessources.cameraParamettersOverride.fGravity);
-        drawFrame();
+        try {
+            drawImgui();
+            player.isFreeFly = uiRessources.cameraParamettersOverride.bFlyingCam;
+            player.update(fElapsedTime, -uiRessources.cameraParamettersOverride.fGravity);
+            drawFrame();
+        } catch (const OutOfDateSwapchainError &f) {
+            recreateSwapchain();
+        }
+
         auto tp2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<float> elapsedTime(tp2 - tp1);
         fElapsedTime = elapsedTime.count();
@@ -329,7 +333,7 @@ void Application::buildIndirectBuffers(Frame &frame)
 }
 
 void Application::drawFrame()
-{
+try {
     auto &frame = frames[currentFrame];
     uint32_t imageIndex;
     vk::Result result;
@@ -338,8 +342,7 @@ void Application::drawFrame()
     std::tie(result, imageIndex) =
         device.acquireNextImageKHR(swapchain.getSwapchain(), UINT64_MAX, frame.imageAvailableSemaphore);
 
-    if (vk_utils::isSwapchainInvalid(result, vk::Result::eErrorOutOfDateKHR)) { return recreateSwapchain(); }
-
+    vk_utils::vk_try(result);
     auto &cmd = commandBuffers[imageIndex];
 
     device.resetFences(frame.inFlightFences);
@@ -419,18 +422,16 @@ void Application::drawFrame()
         .pResults = nullptr,
     };
 
-    result = presentQueue.presentKHR(presentInfo);
-    if (vk_utils::isSwapchainInvalid(result, vk::Result::eErrorOutOfDateKHR, vk::Result::eSuboptimalKHR) ||
-        framebufferResized) {
-        framebufferResized = false;
-        return recreateSwapchain();
-    }
-
+    vk_utils::vk_try(presentQueue.presentKHR(presentInfo));
     currentFrame = (currentFrame + 1) % MAX_FRAME_FRAME_IN_FLIGHT;
+
+} catch (const vk::OutOfDateKHRError &se) {
+    return recreateSwapchain();
 }
 
 void Application::drawImgui()
 {
+    bool bOutOfDate = false;
     static const std::vector<vk::SampleCountFlagBits> sampleCount = {
         vk::SampleCountFlagBits::e1,  vk::SampleCountFlagBits::e2,  vk::SampleCountFlagBits::e4,
         vk::SampleCountFlagBits::e8,  vk::SampleCountFlagBits::e16, vk::SampleCountFlagBits::e32,
@@ -459,18 +460,18 @@ void Application::drawImgui()
     }
 
     if (ImGui::CollapsingHeader("Render")) {
-        if (ImGui::Button("Recreate Swapchain")) { framebufferResized = true; }
+        if (ImGui::Button("Recreate Swapchain")) bOutOfDate = true;
         if (ImGui::Checkbox("Wireframe mode", &uiRessources.bWireFrameMode)) {
             creationParameters.polygonMode =
                 (uiRessources.bWireFrameMode) ? (vk::PolygonMode::eLine) : (vk::PolygonMode::eFill);
-            framebufferResized = true;
+            bOutOfDate = true;
         }
         if (ImGui::BeginCombo("##culling", vk_utils::tools::to_string(creationParameters.cullMode).c_str())) {
             for (const auto &cu: cullMode) {
                 bool is_selected = (creationParameters.cullMode == cu);
                 if (ImGui::Selectable(vk_utils::tools::to_string(cu).c_str(), is_selected)) {
                     creationParameters.cullMode = cu;
-                    framebufferResized = true;
+                    bOutOfDate = true;
                 }
                 if (is_selected) { ImGui::SetItemDefaultFocus(); }
             }
@@ -481,7 +482,7 @@ void Application::drawImgui()
                 bool is_selected = (creationParameters.msaaSample == msaa);
                 if (ImGui::Selectable(vk_utils::tools::to_string(msaa).c_str(), is_selected)) {
                     creationParameters.msaaSample = msaa;
-                    framebufferResized = true;
+                    bOutOfDate = true;
                 }
                 if (is_selected) { ImGui::SetItemDefaultFocus(); }
                 if (msaa == maxMsaaSample) break;
@@ -525,6 +526,8 @@ void Application::drawImgui()
                 ImGui::GetIO().Framerate);
     ImGui::End();
     ImGui::Render();
+
+    if (bOutOfDate) throw OutOfDateSwapchainError();
 }
 
 void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, int)

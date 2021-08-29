@@ -55,6 +55,10 @@ try {
     logger->err("VULKAN_ERROR") << se.what();
     logger->endl();
     return EXIT_FAILURE;
+} catch (const vk::SystemError &se) {
+    logger->err("SYSTEM_ERROR") << se.what();
+    logger->endl();
+    return EXIT_FAILURE;
 } catch (const std::exception &e) {
     logger->err("EXCEPTION") << e.what();
     logger->endl();
