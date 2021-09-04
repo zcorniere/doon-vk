@@ -11,6 +11,18 @@
 class Swapchain
 {
 public:
+    struct SupportDetails {
+        vk::SurfaceCapabilitiesKHR capabilities;
+        std::vector<vk::SurfaceFormatKHR> formats;
+        std::vector<vk::PresentModeKHR> presentModes;
+
+        vk::SurfaceFormatKHR chooseSwapSurfaceFormat() noexcept;
+        vk::PresentModeKHR chooseSwapPresentMode() noexcept;
+        vk::Extent2D chooseSwapExtent(Window &window) noexcept;
+        static SupportDetails querySwapChainSupport(const vk::PhysicalDevice &device, const vk::SurfaceKHR &surface);
+    };
+
+public:
     Swapchain();
     ~Swapchain();
 

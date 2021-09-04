@@ -6,7 +6,6 @@
 
 #include "DebugMacros.hpp"
 #include "QueueFamilyIndices.hpp"
-#include "SwapChainSupportDetails.hpp"
 #include "vk_init.hpp"
 #include "vk_utils.hpp"
 
@@ -45,7 +44,7 @@ void Swapchain::createSwapchain(Window &window, vk::PhysicalDevice &gpu, vk::Dev
     DEBUG_FUNCTION
     auto indices = QueueFamilyIndices::findQueueFamilies(gpu, surface);
 
-    auto swapChainSupport = SwapChainSupportDetails::querySwapChainSupport(gpu, surface);
+    auto swapChainSupport = SupportDetails::querySwapChainSupport(gpu, surface);
     auto surfaceFormat = swapChainSupport.chooseSwapSurfaceFormat();
     auto presentMode = swapChainSupport.chooseSwapPresentMode();
     auto extent = swapChainSupport.chooseSwapExtent(window);

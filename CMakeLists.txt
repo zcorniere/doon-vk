@@ -42,6 +42,7 @@ add_executable(${PROJECT_NAME} source/main.cpp
                                source/Player.cpp
                                source/Scene.cpp
                                source/Swapchain.cpp
+                               source/SwapchainSupportDetails.cpp
                                source/Application.cpp
 )
 
