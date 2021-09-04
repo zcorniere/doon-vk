@@ -229,6 +229,7 @@ void Application::loadTextures()
 void Application::run()
 {
     DEBUG_FUNCTION;
+    unsigned failedFrames = 0;
     float fElapsedTime = 0;
 
     scene.addObject({
@@ -279,11 +280,12 @@ void Application::run()
 
     void *objectData = nullptr;
     for (auto &frame: frames) {
-        vmaMapMemory(allocator, frame.data.materialBuffer.memory, &objectData);
+        allocator.mapMemory(frame.data.materialBuffer.memory, &objectData);
         auto *objectSSBI = (gpuObject::Material *)objectData;
         for (unsigned i = 0; i < materials.size(); i++) { objectSSBI[i] = materials.at(i); }
-        vmaUnmapMemory(allocator, frame.data.materialBuffer.memory);
+        allocator.unmapMemory(frame.data.materialBuffer.memory);
     }
+
     while (!window.shouldClose()) {
         window.setTitle(uiRessources.sWindowTitle);
         auto tp1 = std::chrono::high_resolution_clock::now();
@@ -303,9 +305,16 @@ void Application::run()
             player.isFreeFly = uiRessources.cameraParamettersOverride.bFlyingCam;
             player.update(fElapsedTime, -uiRessources.cameraParamettersOverride.fGravity);
             drawFrame();
-        } catch (const OutOfDateSwapchainError &f) {
+            failedFrames = 0;
+        } catch (const OutOfDateSwapchainError &oodse) {
             recreateSwapchain();
+        } catch (const VulkanException &f) {
+            logger->err(__PRETTY_FUNCTION__) << "Frame failed to render: " << f.what();
+            LOGGER_ENDL;
+            failedFrames += 1;
         }
+
+        if (failedFrames >= MAX_FRAME_FRAME_IN_FLIGHT) throw std::runtime_error("Multiple frames failed, exiting");
 
         auto tp2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<float> elapsedTime(tp2 - tp1);
@@ -316,10 +325,10 @@ void Application::run()
 void Application::buildIndirectBuffers(Frame &frame)
 {
     void *sceneData = nullptr;
-    vmaMapMemory(allocator, frame.indirectBuffer.memory, &sceneData);
+    allocator.mapMemory(frame.indirectBuffer.memory, &sceneData);
+
     auto *buffer = (vk::DrawIndexedIndirectCommand *)sceneData;
     const auto &packedDraws = scene.getDrawBatch();
-
     for (uint32_t i = 0; i < packedDraws.size(); i++) {
         const auto &mesh = loadedMeshes.at(packedDraws[i].meshId);
 
@@ -329,7 +338,8 @@ void Application::buildIndirectBuffers(Frame &frame)
         buffer[i].instanceCount = 1;
         buffer[i].firstInstance = i;
     }
-    vmaUnmapMemory(allocator, frame.indirectBuffer.memory);
+
+    allocator.unmapMemory(frame.indirectBuffer.memory);
 }
 
 void Application::drawFrame()
@@ -343,9 +353,9 @@ try {
         device.acquireNextImageKHR(swapchain.getSwapchain(), UINT64_MAX, frame.imageAvailableSemaphore);
 
     vk_utils::vk_try(result);
-    auto &cmd = commandBuffers[imageIndex];
-
     device.resetFences(frame.inFlightFences);
+
+    auto &cmd = commandBuffers[imageIndex];
     cmd.reset();
 
     vk::Semaphore waitSemaphores[] = {frame.imageAvailableSemaphore};
@@ -367,10 +377,10 @@ try {
     clearValues.at(1).depthStencil = vk::ClearDepthStencilValue{1.0f, 0};
 
     void *objectData = nullptr;
-    vmaMapMemory(allocator, frame.data.uniformBuffers.memory, &objectData);
+    allocator.mapMemory(frame.data.uniformBuffers.memory, &objectData);
     auto *objectSSBI = (gpuObject::UniformBufferObject *)objectData;
     for (unsigned i = 0; i < scene.getNbOfObject(); i++) { objectSSBI[i] = scene.getObject(i).ubo; }
-    vmaUnmapMemory(allocator, frame.data.uniformBuffers.memory);
+    allocator.unmapMemory(frame.data.uniformBuffers.memory);
     buildIndirectBuffers(frame);
 
     vk::RenderPassBeginInfo renderPassInfo{
@@ -381,35 +391,36 @@ try {
                 .offset = {0, 0},
                 .extent = swapchain.getSwapchainExtent(),
             },
-        .clearValueCount = static_cast<uint32_t>(clearValues.size()),
+        .clearValueCount = clearValues.size(),
         .pClearValues = clearValues.data(),
     };
+
     auto gpuCamera = player.getGPUCameraData(uiRessources.cameraParamettersOverride.fFOV, swapchain.getAspectRatio(),
                                              uiRessources.cameraParamettersOverride.fCloseClippingPlane,
                                              uiRessources.cameraParamettersOverride.fFarClippingPlane);
 
-    vk::CommandBufferBeginInfo beginInfo{
-        .pInheritanceInfo = nullptr,
-    };
+    vk::CommandBufferBeginInfo beginInfo;
     VK_TRY(cmd.begin(&beginInfo));
-    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
-    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, frame.data.objectDescriptor, nullptr);
-    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 1, texturesSet, nullptr);
-    cmd.pushConstants<Camera::GPUCameraData>(
-        pipelineLayout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, gpuCamera);
-
-    vk::DeviceSize offset = 0;
-    cmd.bindVertexBuffers(0, vertexBuffers.buffer, offset);
-    cmd.bindIndexBuffer(indicesBuffers.buffer, 0, vk::IndexType::eUint32);
-    cmd.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
     {
-        for (const auto &draw: scene.getDrawBatch()) {
-            cmd.drawIndexedIndirect(frame.indirectBuffer.buffer, draw.first * sizeof(vk::DrawIndexedIndirectCommand),
-                                    draw.count, sizeof(vk::DrawIndexedIndirectCommand));
+        cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
+        cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, frame.data.objectDescriptor,
+                               nullptr);
+        cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 1, texturesSet, nullptr);
+        cmd.pushConstants<Camera::GPUCameraData>(
+            pipelineLayout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, gpuCamera);
+        cmd.bindVertexBuffers(0, vertexBuffers.buffer, {0});
+        cmd.bindIndexBuffer(indicesBuffers.buffer, 0, vk::IndexType::eUint32);
+        cmd.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+        {
+            for (const auto &draw: scene.getDrawBatch()) {
+                cmd.drawIndexedIndirect(frame.indirectBuffer.buffer,
+                                        draw.first * sizeof(vk::DrawIndexedIndirectCommand), draw.count,
+                                        sizeof(vk::DrawIndexedIndirectCommand));
+            }
+            ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
         }
+        cmd.endRenderPass();
     }
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
-    cmd.endRenderPass();
     cmd.end();
     graphicsQueue.submit(submitInfo, frame.inFlightFences);
 
@@ -424,9 +435,10 @@ try {
 
     vk_utils::vk_try(presentQueue.presentKHR(presentInfo));
     currentFrame = (currentFrame + 1) % MAX_FRAME_FRAME_IN_FLIGHT;
-
 } catch (const vk::OutOfDateKHRError &se) {
     return recreateSwapchain();
+} catch (const vk::Error &e) {
+    throw VulkanException(e);
 }
 
 void Application::drawImgui()
