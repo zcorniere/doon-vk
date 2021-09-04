@@ -11,12 +11,12 @@ struct Vertex {
     glm::vec3 color;
     glm::vec2 texCoord;
 
-    bool operator==(const Vertex &other) const
+    constexpr bool operator==(const Vertex &other) const noexcept
     {
         return pos == other.pos && color == other.color && normal == other.normal && texCoord == other.texCoord;
     }
 
-    static vk::VertexInputBindingDescription getBindingDescription()
+    constexpr static vk::VertexInputBindingDescription getBindingDescription() noexcept
     {
         vk::VertexInputBindingDescription bindingDescription{
             .binding = 0,
@@ -27,7 +27,7 @@ struct Vertex {
         return bindingDescription;
     }
 
-    static std::vector<vk::VertexInputAttributeDescription> getAttributeDescriptons()
+    static std::vector<vk::VertexInputAttributeDescription> getAttributeDescriptons() noexcept
     {
         std::vector<vk::VertexInputAttributeDescription> attributeDescriptions(4);
 

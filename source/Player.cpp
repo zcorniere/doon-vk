@@ -10,7 +10,7 @@ Player::Player(): Camera() {}
 
 Player::~Player() {}
 
-void Player::update(float fElapsedTime, float fGravity)
+void Player::update(float fElapsedTime, float fGravity) noexcept
 {
     if (fGravity > 0) {
         LOGGER_WARN << "fGravity is positive ! : " << fGravity;
@@ -28,7 +28,7 @@ void Player::update(float fElapsedTime, float fGravity)
     }
 }
 
-void Player::processKeyboard(Movement direction)
+void Player::processKeyboard(const Movement direction) noexcept
 {
     auto velocity = (isFreeFly) ? (50) : (movementSpeed / ((bOnFloor == true) ? (1) : (1.1)));
     switch (direction) {
@@ -58,7 +58,7 @@ void Player::processKeyboard(Movement direction)
     }
 }
 
-void Player::processMouseMovement(float xoffset, float yoffset, bool bConstrainPitch)
+void Player::processMouseMovement(float xoffset, float yoffset, bool bConstrainPitch) noexcept
 {
     xoffset *= mouseSensitivity;
     yoffset *= mouseSensitivity;

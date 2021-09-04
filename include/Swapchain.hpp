@@ -49,7 +49,7 @@ public:
         };
     }
 
-    inline operator bool() const { return swapChain; }
+    inline operator bool() const noexcept { return swapChain; }
 
 private:
     void createSwapchain(Window &win, vk::PhysicalDevice &gpu, vk::Device &device, vk::SurfaceKHR &surface);

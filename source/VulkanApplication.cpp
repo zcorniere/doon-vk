@@ -64,6 +64,8 @@ void VulkanApplication::init(std::function<bool()> &&loadingStage)
     createRenderPass();
     createDescriptorSetLayout();
     createTextureDescriptorSetLayout();
+    createPipelineCache();
+    createPipelineLayout();
     createGraphicsPipeline();
     createCommandPool();
     createColorResources();
@@ -86,10 +88,12 @@ void VulkanApplication::initInstance()
 {
     DEBUG_FUNCTION
     if (enableValidationLayers && !checkValiationLayerSupport()) {
-        throw std::runtime_error("validation layers requested, but not available!");
+        throw VulkanException("validation layers requested, but not available!");
     }
+
     auto debugInfo = vk_init::populateDebugUtilsMessengerCreateInfoEXT(&VulkanApplication::debugCallback);
-    auto extensions = getRequiredExtensions(enableValidationLayers);
+    auto extensions = Window::getRequiredExtensions();
+    if (enableValidationLayers) { extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME); }
 
     vk::ApplicationInfo applicationInfo{
         .apiVersion = VK_API_VERSION_1_2,
@@ -282,9 +286,29 @@ void VulkanApplication::createRenderPass()
         .pDependencies = &dependency,
     };
     renderPass = device.createRenderPass(renderPassInfo);
-
     swapchainDeletionQueue.push([&] { device.destroy(renderPass); });
 }
+
+void VulkanApplication::createPipelineCache()
+{
+    DEBUG_FUNCTION
+    vk::PipelineCacheCreateInfo createInfo;
+    pipelineCache = device.createPipelineCache(createInfo);
+    mainDeletionQueue.push([&] { device.destroy(pipelineCache); });
+}
+
+void VulkanApplication::createPipelineLayout()
+{
+    DEBUG_FUNCTION
+    std::vector<vk::PushConstantRange> pipelinePushConstant = {vk_init::populateVkPushConstantRange(
+        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, sizeof(Camera::GPUCameraData))};
+
+    std::vector<vk::DescriptorSetLayout> setLayout = {descriptorSetLayout, texturesSetLayout};
+    auto pipelineLayoutCreateInfo = vk_init::populateVkPipelineLayoutCreateInfo(setLayout, pipelinePushConstant);
+    pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+    mainDeletionQueue.push([&] { device.destroy(pipelineLayout); });
+}
+
 void VulkanApplication::createGraphicsPipeline()
 {
     DEBUG_FUNCTION
@@ -293,13 +317,6 @@ void VulkanApplication::createGraphicsPipeline()
 
     auto vertShaderModule = vk_utils::createShaderModule(device, vertShaderCode);
     auto fragShaderModule = vk_utils::createShaderModule(device, fragShaderCode);
-
-    std::vector<vk::PushConstantRange> pipelinePushConstant = {vk_init::populateVkPushConstantRange(
-        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, sizeof(Camera::GPUCameraData))};
-
-    std::vector<vk::DescriptorSetLayout> setLayout = {descriptorSetLayout, texturesSetLayout};
-    auto pipelineLayoutCreateInfo = vk_init::populateVkPipelineLayoutCreateInfo(setLayout, pipelinePushConstant);
-    pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
 
     std::vector<vk::VertexInputBindingDescription> binding = {Vertex::getBindingDescription()};
     std::vector<vk::VertexInputAttributeDescription> attribute = Vertex::getAttributeDescriptons();
@@ -329,12 +346,9 @@ void VulkanApplication::createGraphicsPipeline()
     builder.rasterizer.frontFace = vk::FrontFace::eCounterClockwise;
     graphicsPipeline = builder.build(device, renderPass);
 
-    vkDestroyShaderModule(device, fragShaderModule, nullptr);
-    vkDestroyShaderModule(device, vertShaderModule, nullptr);
-    swapchainDeletionQueue.push([&] {
-        device.destroy(graphicsPipeline);
-        device.destroy(pipelineLayout);
-    });
+    device.destroy(fragShaderModule);
+    device.destroy(vertShaderModule);
+    swapchainDeletionQueue.push([&] { device.destroy(graphicsPipeline); });
 }
 
 void VulkanApplication::createFramebuffers()

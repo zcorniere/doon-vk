@@ -1,7 +1,7 @@
 #include "vk_init.hpp"
 
 vk::DebugUtilsMessengerCreateInfoEXT
-vk_init::populateDebugUtilsMessengerCreateInfoEXT(PFN_vkDebugUtilsMessengerCallbackEXT debugCallback)
+vk_init::populateDebugUtilsMessengerCreateInfoEXT(PFN_vkDebugUtilsMessengerCallbackEXT debugCallback) noexcept
 {
     return vk::DebugUtilsMessengerCreateInfoEXT{
         .messageSeverity =
@@ -14,7 +14,7 @@ vk_init::populateDebugUtilsMessengerCreateInfoEXT(PFN_vkDebugUtilsMessengerCallb
 }
 
 vk::DeviceQueueCreateInfo vk_init::populateDeviceQueueCreateInfo(const uint32_t count, const uint32_t queue,
-                                                                 const float &priority)
+                                                                 const float &priority) noexcept
 {
     return vk::DeviceQueueCreateInfo{
         .queueFamilyIndex = queue,
@@ -23,7 +23,8 @@ vk::DeviceQueueCreateInfo vk_init::populateDeviceQueueCreateInfo(const uint32_t 
     };
 }
 
-vk::ImageViewCreateInfo vk_init::populateVkImageViewCreateInfo(vk::Image &img, vk::Format format, uint32_t mipLevel)
+vk::ImageViewCreateInfo vk_init::populateVkImageViewCreateInfo(vk::Image &img, vk::Format format,
+                                                               uint32_t mipLevel) noexcept
 {
     return vk::ImageViewCreateInfo{
         .image = img,
@@ -47,7 +48,7 @@ vk::ImageViewCreateInfo vk_init::populateVkImageViewCreateInfo(vk::Image &img, v
     };
 }
 
-vk::ShaderModuleCreateInfo vk_init::populateVkShaderModuleCreateInfo(const std::vector<std::byte> &code)
+vk::ShaderModuleCreateInfo vk_init::populateVkShaderModuleCreateInfo(const std::vector<std::byte> &code) noexcept
 {
     return vk::ShaderModuleCreateInfo{
         .codeSize = code.size(),
@@ -57,7 +58,7 @@ vk::ShaderModuleCreateInfo vk_init::populateVkShaderModuleCreateInfo(const std::
 
 vk::PipelineShaderStageCreateInfo vk_init::populateVkPipelineShaderStageCreateInfo(vk::ShaderStageFlagBits stage,
                                                                                    vk::ShaderModule &module,
-                                                                                   const char *entryPoint)
+                                                                                   const char *entryPoint) noexcept
 {
     return vk::PipelineShaderStageCreateInfo{
         .stage = stage,
@@ -66,9 +67,9 @@ vk::PipelineShaderStageCreateInfo vk_init::populateVkPipelineShaderStageCreateIn
     };
 }
 
-vk::PipelineVertexInputStateCreateInfo
-vk_init::populateVkPipelineVertexInputStateCreateInfo(const std::vector<vk::VertexInputBindingDescription> &binding,
-                                                      const std::vector<vk::VertexInputAttributeDescription> &attribute)
+vk::PipelineVertexInputStateCreateInfo vk_init::populateVkPipelineVertexInputStateCreateInfo(
+    const std::vector<vk::VertexInputBindingDescription> &binding,
+    const std::vector<vk::VertexInputAttributeDescription> &attribute) noexcept
 {
     return vk::PipelineVertexInputStateCreateInfo{
         .vertexBindingDescriptionCount = static_cast<uint32_t>(binding.size()),
@@ -78,7 +79,7 @@ vk_init::populateVkPipelineVertexInputStateCreateInfo(const std::vector<vk::Vert
     };
 }
 vk::PipelineInputAssemblyStateCreateInfo
-vk_init::populateVkPipelineInputAssemblyCreateInfo(vk::PrimitiveTopology topology, vk::Bool32 restart)
+vk_init::populateVkPipelineInputAssemblyCreateInfo(vk::PrimitiveTopology topology, vk::Bool32 restart) noexcept
 {
     return vk::PipelineInputAssemblyStateCreateInfo{
         .topology = topology,
@@ -86,7 +87,8 @@ vk_init::populateVkPipelineInputAssemblyCreateInfo(vk::PrimitiveTopology topolog
     };
 }
 
-vk::PipelineRasterizationStateCreateInfo vk_init::populateVkPipelineRasterizationStateCreateInfo(vk::PolygonMode mode)
+vk::PipelineRasterizationStateCreateInfo
+vk_init::populateVkPipelineRasterizationStateCreateInfo(vk::PolygonMode mode) noexcept
 {
     return vk::PipelineRasterizationStateCreateInfo{
         .depthClampEnable = VK_FALSE,
@@ -103,7 +105,7 @@ vk::PipelineRasterizationStateCreateInfo vk_init::populateVkPipelineRasterizatio
 }
 
 vk::PipelineMultisampleStateCreateInfo
-vk_init::populateVkPipelineMultisampleStateCreateInfo(vk::SampleCountFlagBits msaaSamples)
+vk_init::populateVkPipelineMultisampleStateCreateInfo(vk::SampleCountFlagBits msaaSamples) noexcept
 {
     return vk::PipelineMultisampleStateCreateInfo{
         .rasterizationSamples = msaaSamples,
@@ -116,7 +118,7 @@ vk_init::populateVkPipelineMultisampleStateCreateInfo(vk::SampleCountFlagBits ms
     };
 }
 
-vk::PipelineColorBlendAttachmentState vk_init::populateVkPipelineColorBlendAttachmentState()
+vk::PipelineColorBlendAttachmentState vk_init::populateVkPipelineColorBlendAttachmentState() noexcept
 {
     return vk::PipelineColorBlendAttachmentState{
         .blendEnable = VK_TRUE,
@@ -134,7 +136,7 @@ vk::PipelineColorBlendAttachmentState vk_init::populateVkPipelineColorBlendAttac
 
 vk::PipelineLayoutCreateInfo
 vk_init::populateVkPipelineLayoutCreateInfo(const std::vector<vk::DescriptorSetLayout> &setLayout,
-                                            const std::vector<vk::PushConstantRange> &pushLayout)
+                                            const std::vector<vk::PushConstantRange> &pushLayout) noexcept
 {
     vk::PipelineLayoutCreateInfo createInfo;
 
@@ -143,7 +145,7 @@ vk_init::populateVkPipelineLayoutCreateInfo(const std::vector<vk::DescriptorSetL
     return createInfo;
 }
 
-vk::PipelineDepthStencilStateCreateInfo vk_init::populateVkPipelineDepthStencilStateCreateInfo()
+vk::PipelineDepthStencilStateCreateInfo vk_init::populateVkPipelineDepthStencilStateCreateInfo() noexcept
 {
     return vk::PipelineDepthStencilStateCreateInfo{
         .depthTestEnable = VK_TRUE,
@@ -159,7 +161,8 @@ vk::PipelineDepthStencilStateCreateInfo vk_init::populateVkPipelineDepthStencilS
     };
 }
 
-vk::PushConstantRange vk_init::populateVkPushConstantRange(vk::ShaderStageFlags stage, uint32_t size, uint32_t offset)
+vk::PushConstantRange vk_init::populateVkPushConstantRange(vk::ShaderStageFlags stage, uint32_t size,
+                                                           uint32_t offset) noexcept
 {
     vk::PushConstantRange push_constant{};
     push_constant.offset = offset;

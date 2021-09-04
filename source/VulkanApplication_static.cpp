@@ -10,19 +10,7 @@
 
 #include "Camera.hpp"
 #include "QueueFamilyIndices.hpp"
-#include "SwapChainSupportDetails.hpp"
 #include "VulkanApplication.hpp"
-
-std::vector<const char *> VulkanApplication::getRequiredExtensions(bool bEnableValidationLayers)
-{
-    uint32_t glfwExtensionCount = 0;
-    const char **glfwExtentsions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-    std::vector<const char *> extensions(glfwExtentsions, glfwExtentsions + glfwExtensionCount);
-
-    if (bEnableValidationLayers) { extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME); }
-    return extensions;
-}
 
 static const char *to_string_message_type(VkDebugUtilsMessageTypeFlagsEXT s)
 {
@@ -111,7 +99,7 @@ bool VulkanApplication::isDeviceSuitable(const vk::PhysicalDevice &gpu, const vk
 
     bool swapChainAdequate = false;
     if (extensionsSupported) {
-        auto swapChainSupport = SwapChainSupportDetails::querySwapChainSupport(gpu, surface);
+        auto swapChainSupport = Swapchain::SupportDetails::querySwapChainSupport(gpu, surface);
         swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
     }
     return indices.isComplete() && extensionsSupported && swapChainAdequate && deviceFeatures.samplerAnisotropy &&

@@ -63,7 +63,6 @@ protected:
 
 private:
     static bool checkValiationLayerSupport();
-    static std::vector<const char *> getRequiredExtensions(bool bEnableValidationLayers = false);
     static uint32_t debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                                   VkDebugUtilsMessageTypeFlagsEXT messageType,
                                   const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *);
@@ -81,6 +80,9 @@ private:
     void createLogicalDevice();
     void createAllocator();
     void createRenderPass();
+
+    void createPipelineCache();
+    void createPipelineLayout();
     void createGraphicsPipeline();
     void createFramebuffers();
     void createCommandPool();
@@ -124,6 +126,7 @@ protected:
     vk::DescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
     vk::PipelineLayout pipelineLayout = VK_NULL_HANDLE;
     vk::Pipeline graphicsPipeline = VK_NULL_HANDLE;
+    vk::PipelineCache pipelineCache = VK_NULL_HANDLE;
 
     // Framebuffer
     std::vector<vk::Framebuffer> swapChainFramebuffers;

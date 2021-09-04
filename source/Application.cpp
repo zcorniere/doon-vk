@@ -542,7 +542,7 @@ void Application::drawImgui()
     if (bOutOfDate) throw OutOfDateSwapchainError();
 }
 
-void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, int)
+void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, int) noexcept
 {
     auto *eng = (Application *)glfwGetWindowUserPointer(win);
 
@@ -578,7 +578,7 @@ void Application::keyboard_callback(GLFWwindow *win, int key, int, int action, i
     }
 }
 
-void Application::cursor_callback(GLFWwindow *win, double xpos, double ypos)
+void Application::cursor_callback(GLFWwindow *win, double xpos, double ypos) noexcept
 {
     auto *eng = (Application *)glfwGetWindowUserPointer(win);
     if (eng->bInteractWithUi) return;

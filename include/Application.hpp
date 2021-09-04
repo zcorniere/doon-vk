@@ -31,8 +31,8 @@ private:
     void buildIndirectBuffers(Frame &frame);
     void drawFrame();
     void drawImgui();
-    static void keyboard_callback(GLFWwindow *win, int key, int, int action, int);
-    static void cursor_callback(GLFWwindow *win, double xpos, double ypos);
+    static void keyboard_callback(GLFWwindow *win, int key, int, int action, int) noexcept;
+    static void cursor_callback(GLFWwindow *win, double xpos, double ypos) noexcept;
 
 private:
     DeletionQueue applicationDeletionQueue;

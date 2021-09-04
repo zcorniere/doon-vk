@@ -17,17 +17,24 @@
 
 namespace vk_utils
 {
+
 template <typename T>
 concept is_copyable = requires
 {
     std::is_standard_layout_v<T>;
     typename std::vector<T>;
 };
+
 std::vector<std::byte> readFile(const std::string &filename);
 vk::ShaderModule createShaderModule(const vk::Device &device, const std::vector<std::byte> &code);
 vk::Format findSupportedFormat(vk::PhysicalDevice &gpu, const std::vector<vk::Format> &candidates,
                                vk::ImageTiling tiling, vk::FormatFeatureFlags features);
-bool hasStencilComponent(vk::Format format);
+
+constexpr bool hasStencilComponent(vk::Format format)
+{
+    return format == vk::Format::eD32SfloatS8Uint || format == vk::Format::eD24UnormS8Uint;
+}
+
 uint32_t findMemoryType(vk::PhysicalDevice &physicalDevice, uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
 void vk_try(vk::Result res);
@@ -47,7 +54,5 @@ namespace tools
 {
     const std::string to_string(vk::SampleCountFlagBits count);
     const std::string to_string(vk::CullModeFlagBits count);
-
-    std::string physicalDeviceTypeString(vk::PhysicalDeviceType type);
 }    // namespace tools
 }    // namespace vk_utils

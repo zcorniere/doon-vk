@@ -15,9 +15,9 @@ public:
     Player();
     ~Player();
 
-    void update(float fElapsedTime, float fGravity);
-    void processKeyboard(Movement direction);
-    void processMouseMovement(float xoffset, float yoffset, bool bConstrainPitch = true);
+    void update(float fElapsedTime, float fGravity) noexcept;
+    void processKeyboard(const Movement direction) noexcept;
+    void processMouseMovement(float xoffset, float yoffset, bool bConstrainPitch = true) noexcept;
 
 public:
     bool isFreeFly = false;
