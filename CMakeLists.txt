@@ -1,23 +1,13 @@
 cmake_minimum_required(VERSION 3.20)
 project(doon)
 
-find_package(Vulkan REQUIRED)
-
-include(shaders/CMakeRule.txt)
+include(FetchContent)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-option(CLANG_TIME_TRACE "Enable clang profiling." OFF)
-
-if(CLANG_TIME_TRACE)
-    message(STATUS "Clang profiling - enabled")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftime-trace")
-endif()
-
 message(STATUS "Looking for lld")
 find_program(LLD_FOUND lld)
-
 if (LLD_FOUND)
     message(STATUS "Looking for lld - found")
     set(CMAKE_C_LINKER_FLAGS "-fuse-ld=lld")
@@ -27,60 +17,31 @@ else()
     message(STATUS "Looking for lld - not found")
 endif()
 
-add_subdirectory(lib)
+set(LOCAL_PIVOT_DIRECTORY "" CACHE STRING "Path to a local copy of the Pivot game engine sources")
+if (LOCAL_PIVOT_DIRECTORY STREQUAL "")
+    FetchContent_Declare(
+        pivot
+        GIT_REPOSITORY https://github.com/EIP-Pivot/pivot.git
+        GIT_TAG afd5c3beb8a5979a2ad8ec42c807ec294da4bc95
+    )
+    if (NOT pivot_POPULATED)
+        message(STATUS "Populating pivot")
+        FetchContent_Populate(pivot)
+        add_subdirectory(${pivot_SOURCE_DIR} ${pivot_BINARY_DIR})
+    endif()
+else()
+    add_subdirectory(${LOCAL_PIVOT_DIRECTORY} ${CMAKE_BINARY_DIR}/game-engine)
+endif()
+target_compile_definitions(pivot-graphics PUBLIC
+    PIVOT_MAX_PROJECTION_MATRIX=1000000000.0f
+    CULLING_DEBUG=1
+)
 
 add_executable(${PROJECT_NAME} source/main.cpp
-                               source/Window.cpp
-                               source/VulkanLoader.cpp
-                               source/VulkanApplication.cpp
-                               source/VulkanApplication_helpers.cpp
-                               source/VulkanApplication_static.cpp
-                               source/vk_init.cpp
-                               source/vk_utils.cpp
-                               source/PipelineBuilder.cpp
-                               source/Camera.cpp
-                               source/Player.cpp
-                               source/Scene.cpp
-                               source/Swapchain.cpp
-                               source/SwapchainSupportDetails.cpp
                                source/Application.cpp
+                               source/Scene.cpp
 )
-
-target_precompile_headers(${PROJECT_NAME} PUBLIC <Logger.hpp> <unordered_map> <vector> <DeletionQueue.hpp>
-                                                 <vulkan/vulkan.hpp> <glm/glm.hpp> <VulkanApplication.hpp>
-                                                 <vk_mem_alloc.hpp>
-)
-
-add_shader(${PROJECT_NAME} default_triangle.vert)
-add_shader(${PROJECT_NAME} default_triangle.frag)
-
-target_compile_definitions(${PROJECT_NAME} PRIVATE
-  GLM_FORCE_INLINE
-  GLM_FORCE_RADIANS
-  GLM_FORCE_DEPTH_ZERO_TO_ONE
-  GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
-  GLFW_INCLUDE_NONE
-  GLFW_INCLUDE_VULKAN
-  MAX_PROJECTION_LIMIT=200.0
-  LOGGER_EXTERN_DECLARATION_PTR
-  VULKAN_HPP_NO_CONSTRUCTORS
-  VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1
-)
-
-if(MSVC)
-  target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX)
-else()
-  target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra)
-endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE include/)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan)
-target_link_libraries(${PROJECT_NAME} PRIVATE stb
-                                              glfw
-                                              glm
-                                              imgui
-                                              VulkanMemoryAllocator
-                                              tinyobjloader
-                                              logger
-)
+target_link_libraries(${PROJECT_NAME} PRIVATE pivot)
