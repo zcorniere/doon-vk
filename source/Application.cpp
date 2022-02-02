@@ -14,7 +14,8 @@ Application::Application(): pivot::graphics::VulkanApplication(), camera(glm::ve
 
 void Application::init()
 {
-    assetStorage.loadModels("../models/sponza/sponza.obj");
+    assetStorage.loadModels("../assets/sponza/sponza.gltf", "../models/sponza/sponza2.obj");
+    assetStorage.loadTextures("../textures/grey.png");
 
     window.setKeyPressCallback(Window::Key::LEFT_ALT, [&](Window &window, const Window::Key key) {
         window.captureCursor(!window.captureCursor());
@@ -40,9 +41,17 @@ void Application::init()
         .meshID = "sponza",
         .objectInformation =
             {
-                .transform = Transform({}, {}, glm::vec3(1)),
+                .transform = Transform({}, {}, glm::vec3(170)),
             },
     });
+    scene.addObject({
+        .meshID = "sponza2",
+        .objectInformation =
+            {
+                .transform = Transform(glm::vec3(0, 0, 3000), {}, glm::vec3(1)),
+            },
+    });
+    // scene.addObject({.meshID = "basic"});
 }
 
 void Application::run()

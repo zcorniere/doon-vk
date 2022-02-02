@@ -5,5 +5,6 @@
 void Scene::addObject(RenderObject o)
 {
     obj.push_back(std::move(o));
-    obj_ref.push_back(std::cref(obj.back()));
+    obj_ref.clear();
+    for (const auto &o: obj) obj_ref.push_back(o);
 }
