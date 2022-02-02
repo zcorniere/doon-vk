@@ -4,7 +4,7 @@
 #include "Application.hpp"
 
 struct CmdOption {
-    bool bVerbose = false;
+    unsigned bVerbose = 0;
 };
 
 CmdOption getCmdLineOption(int ac, char **av)
@@ -14,7 +14,7 @@ CmdOption getCmdLineOption(int ac, char **av)
 
     while ((c = getopt(ac, av, "v")) != -1) {
         switch (c) {
-            case 'v': opt.bVerbose = true; break;
+            case 'v': opt.bVerbose += 1; break;
             default: break;
         }
     }
@@ -27,7 +27,11 @@ try{
     logger.start(Logger::Level::Info);
 
     auto options = getCmdLineOption(ac, av);
-    if (options.bVerbose) logger.setLevel(Logger::Level::Debug);
+    switch (options.bVerbose) {
+        case 1: logger.setLevel(Logger::Level::Debug); break;
+        case 2: logger.setLevel(Logger::Level::Trace); break;
+        default: break;
+    }
 
     Application app;
     app.init();
