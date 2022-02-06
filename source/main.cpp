@@ -7,26 +7,26 @@ struct CmdOption {
     unsigned bVerbose = 0;
 };
 
-CmdOption getCmdLineOption(int ac, char **av)
-{
-    CmdOption opt{};
-    int c;
+// CmdOption getCmdLineOption(int ac, char **av)
+// {
+//     CmdOption opt{};
+//     int c;
 
-    while ((c = getopt(ac, av, "v")) != -1) {
-        switch (c) {
-            case 'v': opt.bVerbose += 1; break;
-            default: break;
-        }
-    }
+//     while ((c = getopt(ac, av, "v")) != -1) {
+//         switch (c) {
+//             case 'v': opt.bVerbose += 1; break;
+//             default: break;
+//         }
+//     }
 
-    return opt;
-}
+//     return opt;
+// }
 
 int main(int ac, char **av)
 try{
     logger.start(Logger::Level::Info);
 
-    auto options = getCmdLineOption(ac, av);
+    CmdOption options = {};    // getCmdLineOption(ac, av);
     switch (options.bVerbose) {
         case 1: logger.setLevel(Logger::Level::Debug); break;
         case 2: logger.setLevel(Logger::Level::Trace); break;

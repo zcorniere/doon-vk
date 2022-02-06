@@ -1,4 +1,7 @@
 #include "Application.hpp"
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_vulkan.h>
+#include <imgui.h>
 
 /// Speed movement
 static constexpr const float SPEED = 0.5f;
@@ -14,7 +17,7 @@ Application::Application(): pivot::graphics::VulkanApplication(), camera(glm::ve
 
 void Application::init()
 {
-    assetStorage.loadModels("../assets/sponza/sponza.gltf", "../models/sponza/sponza2.obj");
+    assetStorage.loadModels("../assets/sponza/sponza.gltf");    //, "../models/sponza/sponza2.obj");
     assetStorage.loadTextures("../textures/grey.png");
 
     window.setKeyPressCallback(Window::Key::LEFT_ALT, [&](Window &window, const Window::Key key) {
@@ -44,13 +47,13 @@ void Application::init()
                 .transform = Transform({}, {}, glm::vec3(170)),
             },
     });
-    scene.addObject({
-        .meshID = "sponza2",
-        .objectInformation =
-            {
-                .transform = Transform(glm::vec3(0, 0, 3000), {}, glm::vec3(1)),
-            },
-    });
+    // scene.addObject({
+    //     .meshID = "sponza2",
+    //     .objectInformation =
+    //         {
+    //             .transform = Transform(glm::vec3(0, 0, 3000), {}, glm::vec3(1)),
+    //         },
+    // });
     // scene.addObject({.meshID = "basic"});
 }
 
@@ -68,6 +71,18 @@ void Application::run()
             if (window.isKeyPressed(Window::Key::A)) processKeyboard(camera, Camera::LEFT, fElapsedTime);
             if (window.isKeyPressed(Window::Key::SPACE)) processKeyboard(camera, Camera::UP, fElapsedTime);
             if (window.isKeyPressed(Window::Key::LEFT_SHIFT)) processKeyboard(camera, Camera::DOWN, fElapsedTime);
+        }
+        {
+            ImGui_ImplVulkan_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+
+            ImGui::Begin("Test Window");
+            ImGui::Text("Fps: %.1f", ImGui::GetIO().Framerate);
+            ImGui::Text("ms/frame %.3f", 1000.0f / ImGui::GetIO().Framerate);
+            ImGui::End();
+
+            ImGui::Render();
         }
         draw(scene.getSceneInformations(), camera.getGPUCameraData(80.0f, getAspectRatio()));
         auto tp2 = std::chrono::high_resolution_clock::now();
