@@ -17,9 +17,14 @@ Application::Application(): pivot::graphics::VulkanApplication(), camera(glm::ve
 
 void Application::init()
 {
-    assetStorage.loadModels("../assets/sponza/sponza.gltf");    //, "../models/sponza/sponza2.obj");
+    assetStorage.loadModels("../assets/sponza/sponza.gltf");
     assetStorage.loadTextures("../textures/grey.png");
 
+#ifdef CULLING_DEBUG
+    window.setKeyPressCallback(Window::Key::C, [this](Window &window, const Window::Key key) {
+        if (window.captureCursor()) this->cullingCameraFollowsCamera = !this->cullingCameraFollowsCamera;
+    });
+#endif
     window.setKeyPressCallback(Window::Key::LEFT_ALT, [&](Window &window, const Window::Key key) {
         window.captureCursor(!window.captureCursor());
         bFirstMouse = true;
@@ -45,6 +50,13 @@ void Application::init()
         .objectInformation =
             {
                 .transform = Transform({}, {}, glm::vec3(170)),
+            },
+    });
+    scene.addObject({
+        .meshID = "sponza",
+        .objectInformation =
+            {
+                .transform = Transform(glm::vec3(0, 100, 0), {}, glm::vec3(20)),
             },
     });
     // scene.addObject({
@@ -80,11 +92,23 @@ void Application::run()
             ImGui::Begin("Test Window");
             ImGui::Text("Fps: %.1f", ImGui::GetIO().Framerate);
             ImGui::Text("ms/frame %.3f", 1000.0f / ImGui::GetIO().Framerate);
+            ImGui::Separator();
+#ifdef CULLING_DEBUG
+            ImGui::Text("Culling separated from camera: %s", std::to_string(!cullingCameraFollowsCamera).c_str());
+#endif
             ImGui::End();
 
             ImGui::Render();
         }
-        draw(scene.getSceneInformations(), camera.getGPUCameraData(80.0f, getAspectRatio()));
+#ifdef CULLING_DEBUG
+        if (cullingCameraFollowsCamera) cullingCamera = camera;
+#endif
+        draw(scene.getSceneInformations(), camera.getGPUCameraData(80.0f, getAspectRatio())
+#ifdef CULLING_DEBUG
+                                               ,
+             std::make_optional(cullingCamera.getGPUCameraData(80.0f, getAspectRatio()))
+#endif
+        );
         auto tp2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<float> elapsedTime(tp2 - tp1);
         fElapsedTime = elapsedTime.count();

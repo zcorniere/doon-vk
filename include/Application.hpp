@@ -24,4 +24,6 @@ public:
     bool bFirstMouse = true;
     Scene scene;
     Camera camera;
+    Camera cullingCamera;
+    bool cullingCameraFollowsCamera = true;
 };

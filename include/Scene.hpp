@@ -9,7 +9,7 @@ public:
     Scene() = default;
     void addObject(RenderObject o);
 
-    constexpr const std::vector<std::reference_wrapper<const RenderObject>> &getSceneInformations() const noexcept
+    constexpr std::vector<std::reference_wrapper<const RenderObject>> &getSceneInformations()  noexcept
     {
         return obj_ref;
     }
