@@ -22,7 +22,7 @@ if (LOCAL_PIVOT_DIRECTORY STREQUAL "")
     FetchContent_Declare(
         pivot
         GIT_REPOSITORY https://github.com/EIP-Pivot/pivot.git
-        GIT_TAG e5dd9f302bacbbdafccbbfa26b996dff66e29aef
+        GIT_TAG 37089a7787c6030c99e63608488d475025cd9eb2
     )
     if (NOT pivot_POPULATED)
         message(STATUS "Populating pivot")
@@ -44,4 +44,4 @@ add_executable(${PROJECT_NAME} source/main.cpp
 
 target_include_directories(${PROJECT_NAME} PRIVATE include/)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE pivot)
+target_link_libraries(${PROJECT_NAME} PRIVATE pivot::pivot)

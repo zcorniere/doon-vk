@@ -1,11 +1,8 @@
 #pragma once
 
+#include <Logger.hpp>
 #include <pivot/ecs/Components/Camera.hxx>
 #include <pivot/graphics/VulkanApplication.hxx>
-#include <pivot/graphics/Window.hxx>
-#include <pivot/graphics/vk_utils.hxx>
-
-#include <Logger.hpp>
 
 #include "Scene.hpp"
 

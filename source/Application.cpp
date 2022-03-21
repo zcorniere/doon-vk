@@ -1,4 +1,7 @@
 #include "Application.hpp"
+
+#include <pivot/internal/camera.hxx>
+
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui.h>
@@ -17,9 +20,6 @@ Application::Application(): pivot::graphics::VulkanApplication(), camera(glm::ve
 
 void Application::init()
 {
-    assetStorage.loadModels("../assets/sponza/sponza.gltf");
-    assetStorage.loadTextures("../textures/grey.png");
-
 #ifdef CULLING_DEBUG
     window.setKeyPressCallback(Window::Key::C, [this](Window &window, const Window::Key key) {
         if (window.captureCursor()) this->cullingCameraFollowsCamera = !this->cullingCameraFollowsCamera;
@@ -45,28 +45,6 @@ void Application::init()
         }
         camera.updateCameraVectors();
     });
-    scene.addObject({
-        .meshID = "sponza",
-        .objectInformation =
-            {
-                .transform = Transform({}, {}, glm::vec3(170)),
-            },
-    });
-    scene.addObject({
-        .meshID = "sponza",
-        .objectInformation =
-            {
-                .transform = Transform(glm::vec3(0, 100, 0), {}, glm::vec3(20)),
-            },
-    });
-    // scene.addObject({
-    //     .meshID = "sponza2",
-    //     .objectInformation =
-    //         {
-    //             .transform = Transform(glm::vec3(0, 0, 3000), {}, glm::vec3(1)),
-    //         },
-    // });
-    // scene.addObject({.meshID = "basic"});
 }
 
 void Application::run()
@@ -103,10 +81,10 @@ void Application::run()
 #ifdef CULLING_DEBUG
         if (cullingCameraFollowsCamera) cullingCamera = camera;
 #endif
-        draw(scene.getSceneInformations(), camera.getGPUCameraData(80.0f, getAspectRatio())
+        draw(scene.getSceneInformations(), pivot::internals::getGPUCameraData(camera, 80.0f, getAspectRatio())
 #ifdef CULLING_DEBUG
                                                ,
-             std::make_optional(cullingCamera.getGPUCameraData(80.0f, getAspectRatio()))
+             std::make_optional(pivot::internals::getGPUCameraData(cullingCamera, 80.0f, getAspectRatio()))
 #endif
         );
         auto tp2 = std::chrono::high_resolution_clock::now();
