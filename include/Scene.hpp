@@ -7,14 +7,14 @@ class Scene
 {
 public:
     Scene() = default;
-    void addObject(RenderObject o);
+    void addObject(pivot::graphics::RenderObject o);
 
-    constexpr std::vector<std::reference_wrapper<const RenderObject>> &getSceneInformations() noexcept
+    constexpr std::vector<std::reference_wrapper<const pivot::graphics::RenderObject>> &getSceneInformations() noexcept
     {
         return obj_ref;
     }
 
 private:
-    std::vector<std::reference_wrapper<const RenderObject>> obj_ref;
-    std::vector<RenderObject> obj;
+    std::vector<std::reference_wrapper<const pivot::graphics::RenderObject>> obj_ref;
+    std::vector<pivot::graphics::RenderObject> obj;
 };

@@ -2,7 +2,7 @@
 
 #include <functional>
 
-void Scene::addObject(RenderObject o)
+void Scene::addObject(pivot::graphics::RenderObject o)
 {
     obj.push_back(std::move(o));
     obj_ref.clear();
