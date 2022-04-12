@@ -14,13 +14,14 @@ public:
     void init();
     void run();
 
-    static void processKeyboard(Camera &cam, const Camera::Movement direction, float dt);
+    static void processKeyboard(pivot::builtins::Camera &cam, const pivot::builtins::Camera::Movement direction,
+                                float dt);
 
 public:
     glm::dvec2 last;
     bool bFirstMouse = true;
     Scene scene;
-    Camera camera;
-    Camera cullingCamera;
+    pivot::builtins::Camera camera;
+    pivot::builtins::Camera cullingCamera;
     bool cullingCameraFollowsCamera = true;
 };

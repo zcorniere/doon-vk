@@ -1,4 +1,3 @@
-#include <pivot/graphics/pivot.hxx>
 #include <iostream>
 
 #include "Application.hpp"
@@ -20,6 +19,8 @@ CmdOption getCmdLineOption(int ac, char **av)
     return opt;
 }
 
+using Transform = pivot::graphics::Transform;
+
 int main(int ac, char **av)
 try{
     logger.start(Logger::Level::Info);
@@ -38,15 +39,25 @@ try{
             app.scene.addObject({
                 .meshID = "sponza",
                 .pipelineID = ((y + i) % 2) ? ("wireframe") : (""),
-                .transform = Transform({i * 1600, 0, y * 1000}, {}, glm::vec3(50)),
+                .transform =
+                    {
+                        .position = {i * 1600, 0, y * 1000},
+                        .scale = glm::vec3(50),
+                    },
             });
         }
     }
 
-    app.assetStorage.loadModels("../assets/sponza/sponza.gltf");
+    app.scene.addObject({.meshID = "FlightHelmet",
+                         .transform = {
+                             .position = {0.f, 100.f, 0.f},
+                             .scale = glm::vec3(100),
+                         }});
+    app.assetStorage.loadModels("sponza/sponza.gltf", "FlightHelmet/glTF/FlightHelmet.gltf");
     app.assetStorage.loadTextures("../textures/grey.png");
     app.init();
     app.run();
     return 0;
+} catch (const pivot::PivotException &pe) {
+    logger.err(pe.getScope()) << pe.getKind() << "/" << pe.what();
 }
-CATCH_PIVOT_EXCEPTIONS

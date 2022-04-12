@@ -6,6 +6,10 @@
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui.h>
 
+#include "pivot/graphics/Renderer/CullingRenderer.hxx"
+#include "pivot/graphics/Renderer/GraphicsRenderer.hxx"
+#include "pivot/graphics/Renderer/ImGuiRenderer.hxx"
+
 /// Speed movement
 static constexpr const float SPEED = 0.5f;
 /// Jump height
@@ -16,10 +20,15 @@ static constexpr const float SENSITIVITY = 0.5f;
 static constexpr const bool CONSTRAIN_PITCH = true;
 /// @endcond
 
+using namespace pivot::graphics;
+
 Application::Application(): pivot::graphics::VulkanApplication(), camera(glm::vec3(0, 0, 0)){};
 
 void Application::init()
 {
+    addRenderer<CullingRenderer>();
+    addRenderer<GraphicsRenderer>();
+    addRenderer<ImGuiRenderer>();
 #ifdef CULLING_DEBUG
     window.setKeyPressCallback(Window::Key::C, [this](Window &window, const Window::Key key) {
         if (window.captureCursor()) this->cullingCameraFollowsCamera = !this->cullingCameraFollowsCamera;
@@ -45,22 +54,30 @@ void Application::init()
         }
         camera.updateCameraVectors();
     });
+    VulkanApplication::init();
+    //pipelineStorage.setDefault("lit");
 }
 
 void Application::run()
 {
     float fElapsedTime = 0.0f;
-    VulkanApplication::init();
+    //pipelineStorage.setDefault("lit");
     while (!window.shouldClose()) {
         auto tp1 = std::chrono::high_resolution_clock::now();
         window.pollEvent();
         if (window.captureCursor()) {
-            if (window.isKeyPressed(Window::Key::W)) processKeyboard(camera, Camera::FORWARD, fElapsedTime);
-            if (window.isKeyPressed(Window::Key::S)) processKeyboard(camera, Camera::BACKWARD, fElapsedTime);
-            if (window.isKeyPressed(Window::Key::D)) processKeyboard(camera, Camera::RIGHT, fElapsedTime);
-            if (window.isKeyPressed(Window::Key::A)) processKeyboard(camera, Camera::LEFT, fElapsedTime);
-            if (window.isKeyPressed(Window::Key::SPACE)) processKeyboard(camera, Camera::UP, fElapsedTime);
-            if (window.isKeyPressed(Window::Key::LEFT_SHIFT)) processKeyboard(camera, Camera::DOWN, fElapsedTime);
+            if (window.isKeyPressed(Window::Key::W))
+                processKeyboard(camera, pivot::builtins::Camera::FORWARD, fElapsedTime);
+            if (window.isKeyPressed(Window::Key::S))
+                processKeyboard(camera, pivot::builtins::Camera::BACKWARD, fElapsedTime);
+            if (window.isKeyPressed(Window::Key::D))
+                processKeyboard(camera, pivot::builtins::Camera::RIGHT, fElapsedTime);
+            if (window.isKeyPressed(Window::Key::A))
+                processKeyboard(camera, pivot::builtins::Camera::LEFT, fElapsedTime);
+            if (window.isKeyPressed(Window::Key::SPACE))
+                processKeyboard(camera, pivot::builtins::Camera::UP, fElapsedTime);
+            if (window.isKeyPressed(Window::Key::LEFT_SHIFT))
+                processKeyboard(camera, pivot::builtins::Camera::DOWN, fElapsedTime);
         }
         {
             ImGui_ImplVulkan_NewFrame();
@@ -93,28 +110,29 @@ void Application::run()
     }
 }
 
-void Application::processKeyboard(Camera &cam, const Camera::Movement direction, float dt)
+void Application::processKeyboard(pivot::builtins::Camera &cam, const pivot::builtins::Camera::Movement direction,
+                                  float dt)
 {
     switch (direction) {
-        case Camera::Movement::FORWARD: {
+        case pivot::builtins::Camera::Movement::FORWARD: {
             cam.position.x += cam.front.x * SPEED * (dt * 500);
             cam.position.z += cam.front.z * SPEED * (dt * 500);
         } break;
-        case Camera::Movement::BACKWARD: {
+        case pivot::builtins::Camera::Movement::BACKWARD: {
             cam.position.x -= cam.front.x * SPEED * (dt * 500);
             cam.position.z -= cam.front.z * SPEED * (dt * 500);
         } break;
-        case Camera::Movement::RIGHT: {
+        case pivot::builtins::Camera::Movement::RIGHT: {
             cam.position.x += cam.right.x * SPEED * (dt * 500);
             cam.position.z += cam.right.z * SPEED * (dt * 500);
         } break;
-        case Camera::Movement::LEFT: {
+        case pivot::builtins::Camera::Movement::LEFT: {
             cam.position.x -= cam.right.x * SPEED * (dt * 500);
             cam.position.z -= cam.right.z * SPEED * (dt * 500);
         } break;
-        case Camera::Movement::UP: {
+        case pivot::builtins::Camera::Movement::UP: {
             cam.position.y += JUMP * (dt * 500);
         } break;
-        case Camera::Movement::DOWN: cam.position.y -= SPEED * (dt * 500); break;
+        case pivot::builtins::Camera::Movement::DOWN: cam.position.y -= SPEED * (dt * 500); break;
     }
 }

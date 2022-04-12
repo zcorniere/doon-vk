@@ -17,12 +17,15 @@ else()
     message(STATUS "Looking for lld - not found")
 endif()
 
+set(PIVOT_ASSET_DEFAULT_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/")
+set(BUILD_EDITOR OFF)
+set(BUILD_LAUNCHER OFF)
 set(LOCAL_PIVOT_DIRECTORY "" CACHE STRING "Path to a local copy of the Pivot game engine sources")
 if (LOCAL_PIVOT_DIRECTORY STREQUAL "")
     FetchContent_Declare(
         pivot
         GIT_REPOSITORY https://github.com/EIP-Pivot/pivot.git
-        GIT_TAG 37089a7787c6030c99e63608488d475025cd9eb2
+        GIT_TAG a23172da924718e0aad28bb15425ec702d4d4c43
     )
     if (NOT pivot_POPULATED)
         message(STATUS "Populating pivot")
